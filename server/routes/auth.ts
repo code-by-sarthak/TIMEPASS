@@ -314,7 +314,106 @@ router.post('/otp/verify', async (req: Request, res: Response) => {
   }
 });
 
-// 6. Google Sign-In Simulation / OAuth Endpoint
+// 6. Real Firebase Authentication Sync Endpoint (Google, Phone OTP, Email/Pass)
+router.post('/firebase-sync', async (req: Request, res: Response) => {
+  try {
+    const { uid, email, phoneNumber, displayName, photoUrl, providerId } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ error: 'Firebase UID is required' });
+    }
+
+    const conditions = [];
+    if (email) conditions.push({ email: email.toLowerCase() });
+    if (phoneNumber) conditions.push({ phone: phoneNumber });
+
+    // Check if user exists by email or phone
+    let user = conditions.length > 0 ? await prisma.user.findFirst({
+      where: {
+        OR: conditions
+      },
+      include: { profile: true }
+    }) : null;
+
+    if (user) {
+      // Update display name or avatar if updated in Firebase
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          displayName: displayName || user.displayName,
+          avatarUrl: photoUrl || user.avatarUrl,
+          ...(phoneNumber && !user.phone ? { phone: phoneNumber } : {}),
+          ...(email && !user.email ? { email: email.toLowerCase() } : {}),
+        },
+        include: { profile: true }
+      });
+    } else {
+      // Create new verified user
+      const cleanName = displayName || (email ? email.split('@')[0] : (phoneNumber ? `User_${phoneNumber.slice(-4)}` : 'Chatter'));
+      const prefix = providerId === 'google.com' ? 'g' : (phoneNumber ? 'ph' : 'u');
+      const username = `${prefix}_${cleanName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${Math.floor(100 + Math.random() * 900)}`;
+      const avatarUrl = photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanName)}`;
+
+      user = await prisma.user.create({
+        data: {
+          email: email ? email.toLowerCase() : null,
+          phone: phoneNumber || null,
+          username,
+          displayName: cleanName,
+          avatarUrl,
+          isGuest: false,
+          role: 'USER',
+          profile: {
+            create: {
+              country: 'Global',
+              languages: 'English',
+              interests: 'Gaming,Technology,Music,Movies',
+              ageConfirmed: true,
+              preferredChatMode: 'video',
+            }
+          }
+        },
+        include: { profile: true }
+      });
+    }
+
+    if (user.isBanned) {
+      if (user.bannedUntil && new Date() > user.bannedUntil) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { isBanned: false, bannedUntil: null, banReason: null }
+        });
+      } else {
+        return res.status(403).json({
+          error: `Your account is suspended: ${user.banReason || 'Community Guidelines Violation'}`
+        });
+      }
+    }
+
+    const token = signToken(user.id, user.role);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        isGuest: false,
+        role: user.role,
+        profile: user.profile
+      }
+    });
+  } catch (err) {
+    console.error('Firebase sync error:', err);
+    res.status(500).json({ error: 'Failed to synchronize Firebase session' });
+  }
+});
+
+// 7. Google Sign-In Simulation / OAuth Endpoint
 router.post('/google', async (req: Request, res: Response) => {
   try {
     const { email, displayName, photoUrl, googleId } = req.body;
