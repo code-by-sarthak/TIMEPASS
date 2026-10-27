@@ -25,6 +25,8 @@ export function setupSignaling(io: Server) {
       interests?: string[];
       languages?: string[];
       country?: string;
+      gender?: string;
+      region?: string;
       userId?: string;
       displayName?: string;
       avatarUrl?: string;
@@ -57,6 +59,8 @@ export function setupSignaling(io: Server) {
           userId: currentUserId,
           displayName: currentDisplayName,
           avatarUrl: data.avatarUrl,
+          gender: data.gender,
+          region: data.region,
           mode: data.mode || 'video',
           interests: Array.isArray(data.interests) ? data.interests : [],
           languages: Array.isArray(data.languages) && data.languages.length > 0 ? data.languages : ['Any'],
@@ -93,6 +97,8 @@ export function setupSignaling(io: Server) {
               id: partner.userId,
               displayName: partner.displayName,
               avatarUrl: partner.avatarUrl,
+              gender: partner.gender,
+              region: partner.region,
               country: partner.country,
               interests: partner.interests,
               languages: partner.languages,
@@ -109,6 +115,8 @@ export function setupSignaling(io: Server) {
               id: user.userId,
               displayName: user.displayName,
               avatarUrl: user.avatarUrl,
+              gender: user.gender,
+              region: user.region,
               country: user.country,
               interests: user.interests,
               languages: user.languages,

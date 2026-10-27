@@ -61,6 +61,8 @@ describe('TIMEPASS End-to-End Server API & Signaling', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         displayName: 'GuestRider',
+        gender: 'Male',
+        region: 'Mumbai',
         interests: ['Gaming', 'Coding'],
         country: 'Canada'
       })
@@ -71,6 +73,8 @@ describe('TIMEPASS End-to-End Server API & Signaling', () => {
     expect(data.success).toBe(true);
     expect(data.token).toBeDefined();
     expect(data.user.displayName).toBe('GuestRider');
+    expect(data.user.profile.gender).toBe('Male');
+    expect(data.user.profile.region).toBe('Mumbai');
     expect(data.user.isGuest).toBe(true);
   });
 

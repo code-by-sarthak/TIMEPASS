@@ -39,9 +39,11 @@ model UserProfile {
   id                  String   @id @default(cuid())
   userId              String   @unique
   bio                 String?
-  country             String   @default("Global")
-  languages           String   @default("English")
-  interests           String   @default("Gaming,Technology,Music")
+  gender              String   @default("Not Specified") // Male, Female, Other
+  region              String   @default("Global")        // Mumbai, Delhi, Punjab, London, etc.
+  country             String   @default("India")
+  languages           String   @default("Hindi,English")
+  interests           String   @default("Music,Movies,Travel")
   ageConfirmed        Boolean  @default(true)
   preferredChatMode   String   @default("video")
   allowFriendRequests Boolean  @default(true)

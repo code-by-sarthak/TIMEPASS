@@ -10,6 +10,8 @@ interface VideoPlayerProps {
   isVideoOff?: boolean;
   displayName?: string;
   avatarUrl?: string | null;
+  gender?: string | null;
+  region?: string | null;
   country?: string;
   qualityBadge?: 'Excellent' | 'Good' | 'Reconnecting';
 }
@@ -21,6 +23,8 @@ export default function VideoPlayer({
   isVideoOff = false,
   displayName,
   avatarUrl,
+  gender,
+  region,
   country,
   qualityBadge,
 }: VideoPlayerProps) {
@@ -73,8 +77,15 @@ export default function VideoPlayer({
         {displayName && (
           <div className="px-3 py-1 rounded-full glass-toolbar text-xs font-medium text-white flex items-center gap-1.5 shadow">
             <span>{displayName}</span>
+            {gender && gender !== 'Not Specified' && (
+              <span className="text-[10px] text-pink-400 font-semibold">({gender})</span>
+            )}
             {isLocal && <span className="text-[10px] text-brand-400 font-bold">(You)</span>}
-            {country && <span className="text-[10px] text-gray-400">· {country}</span>}
+            {region && region !== 'Global' ? (
+              <span className="text-[10px] text-gray-400">· 📍 {region.split('(')[0].trim()}</span>
+            ) : country ? (
+              <span className="text-[10px] text-gray-400">· {country}</span>
+            ) : null}
           </div>
         )}
 

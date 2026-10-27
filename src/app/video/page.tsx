@@ -128,6 +128,8 @@ function VideoChatContent() {
         interests,
         languages: [language],
         country,
+        gender: user?.profile?.gender,
+        region: user?.profile?.region,
         userId: user?.id,
         displayName: user?.displayName,
         avatarUrl: user?.avatarUrl,
@@ -272,6 +274,8 @@ function VideoChatContent() {
         interests,
         languages: [language],
         country,
+        gender: user?.profile?.gender,
+        region: user?.profile?.region,
         userId: user?.id,
         displayName: user?.displayName,
         avatarUrl: user?.avatarUrl,
@@ -518,6 +522,8 @@ function VideoChatContent() {
                   isVideoOff={isPartnerVideoOff}
                   displayName={partner?.displayName || 'Connecting...'}
                   avatarUrl={partner?.avatarUrl}
+                  gender={partner?.gender}
+                  region={partner?.region}
                   country={partner?.country}
                   qualityBadge={connectionQuality}
                 />
@@ -532,6 +538,8 @@ function VideoChatContent() {
                   isVideoOff={isVideoOff}
                   displayName={user?.displayName || 'You'}
                   avatarUrl={user?.avatarUrl}
+                  gender={user?.profile?.gender}
+                  region={user?.profile?.region}
                 />
               </div>
             </div>

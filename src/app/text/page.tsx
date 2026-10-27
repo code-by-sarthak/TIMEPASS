@@ -64,6 +64,8 @@ function TextChatContent() {
       interests,
       languages: [language],
       country,
+      gender: user?.profile?.gender,
+      region: user?.profile?.region,
       userId: user?.id,
       displayName: user?.displayName,
       avatarUrl: user?.avatarUrl,
@@ -214,7 +216,11 @@ function TextChatContent() {
               <span className="text-xs text-gray-400 font-normal">· Text Chat</span>
             </div>
             {partner && status === 'connected' && (
-              <p className="text-[10px] text-gray-400">Connected with {partner.displayName} ({partner.country})</p>
+              <p className="text-[10px] text-gray-400">
+                Connected with <strong className="text-pink-300">{partner.displayName}</strong>
+                {partner.gender && partner.gender !== 'Not Specified' && ` (${partner.gender})`}
+                {partner.region ? ` · 📍 ${partner.region.split('(')[0].trim()}` : ` · 📍 ${partner.country}`}
+              </p>
             )}
           </div>
         </div>

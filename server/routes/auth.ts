@@ -14,10 +14,11 @@ function signToken(userId: string, role: string) {
 // 1. Guest Registration / Quick Onboarding
 router.post('/guest', async (req: Request, res: Response) => {
   try {
-    const { displayName, interests, languages, country } = req.body;
+    const { displayName, gender, region, interests, languages, country } = req.body;
     const cleanName = displayName ? displayName.trim() : `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
     const username = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanName)}`;
+    const avatarGender = gender === 'Female' ? 'adventurer-neutral' : 'bottts';
+    const avatarUrl = `https://api.dicebear.com/7.x/${avatarGender}/svg?seed=${encodeURIComponent(cleanName)}`;
 
     const user = await prisma.user.create({
       data: {
@@ -28,9 +29,11 @@ router.post('/guest', async (req: Request, res: Response) => {
         avatarUrl,
         profile: {
           create: {
-            country: country || 'Global',
-            languages: Array.isArray(languages) ? languages.join(',') : (languages || 'English'),
-            interests: Array.isArray(interests) ? interests.join(',') : (interests || 'Gaming,Music'),
+            gender: gender || 'Not Specified',
+            region: region || 'Global',
+            country: country || 'India',
+            languages: Array.isArray(languages) ? languages.join(',') : (languages || 'Hindi,English'),
+            interests: Array.isArray(interests) ? interests.join(',') : (interests || 'Music,Movies,Friendship'),
             ageConfirmed: true,
             preferredChatMode: 'video',
           }
@@ -317,7 +320,7 @@ router.post('/otp/verify', async (req: Request, res: Response) => {
 // 6. Real Firebase Authentication Sync Endpoint (Google, Phone OTP, Email/Pass)
 router.post('/firebase-sync', async (req: Request, res: Response) => {
   try {
-    const { uid, email, phoneNumber, displayName, photoUrl, providerId } = req.body;
+    const { uid, email, phoneNumber, displayName, photoUrl, providerId, gender, region } = req.body;
 
     if (!uid) {
       return res.status(400).json({ error: 'Firebase UID is required' });
@@ -365,9 +368,11 @@ router.post('/firebase-sync', async (req: Request, res: Response) => {
           role: 'USER',
           profile: {
             create: {
-              country: 'Global',
-              languages: 'English',
-              interests: 'Gaming,Technology,Music,Movies',
+              gender: gender || 'Not Specified',
+              region: region || 'Global',
+              country: 'India',
+              languages: 'Hindi,English',
+              interests: 'Music,Bollywood,Movies,Travel',
               ageConfirmed: true,
               preferredChatMode: 'video',
             }

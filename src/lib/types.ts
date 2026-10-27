@@ -20,6 +20,8 @@ export interface UserProfile {
   id: string;
   userId: string;
   bio?: string | null;
+  gender?: string | null;
+  region?: string | null;
   country: string;
   languages: string; // Comma-separated or string list
   interests: string; // Comma-separated or string list
@@ -34,6 +36,8 @@ export interface MatchPartner {
   username: string;
   displayName: string;
   avatarUrl?: string | null;
+  gender?: string | null;
+  region?: string | null;
   country: string;
   interests: string[];
   languages: string[];
@@ -102,6 +106,8 @@ export interface QueuedUser {
   userId: string;
   displayName: string;
   avatarUrl?: string | null;
+  gender?: string | null;
+  region?: string | null;
   mode: 'video' | 'text';
   interests: string[];
   languages: string[];

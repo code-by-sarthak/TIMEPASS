@@ -11,6 +11,8 @@ export interface FirebaseSyncData {
   displayName?: string | null;
   photoUrl?: string | null;
   providerId?: string | null;
+  gender?: string | null;
+  region?: string | null;
 }
 
 interface AuthContextType {
@@ -19,10 +21,10 @@ interface AuthContextType {
   loading: boolean;
   login: (login: string, pass: string) => Promise<boolean>;
   register: (data: { email: string; password: string; displayName: string; username?: string; interests?: string[]; languages?: string[]; country?: string }) => Promise<boolean>;
-  continueAsGuest: (data?: { displayName?: string; interests?: string[]; languages?: string[]; country?: string }) => Promise<boolean>;
+  continueAsGuest: (data?: { displayName?: string; gender?: string; region?: string; interests?: string[]; languages?: string[]; country?: string }) => Promise<boolean>;
   sendOtp: (phone: string) => Promise<{ success: boolean; devCode?: string; error?: string }>;
   verifyOtp: (phone: string, code: string, displayName?: string) => Promise<boolean>;
-  loginWithGoogle: () => Promise<boolean>;
+  loginWithGoogle: (extraProfile?: { gender?: string; region?: string }) => Promise<boolean>;
   syncFirebaseUser: (data: FirebaseSyncData) => Promise<boolean>;
   logout: () => void;
   updateUser: (updatedUser: Partial<User>) => void;
@@ -103,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginWithGoogle = async (): Promise<boolean> => {
+  const loginWithGoogle = async (extraProfile?: { gender?: string; region?: string }): Promise<boolean> => {
     try {
       const fbUser = await signInWithGooglePopup();
       return await syncFirebaseUser({
@@ -111,7 +113,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: fbUser.email,
         displayName: fbUser.displayName,
         photoUrl: fbUser.photoURL,
-        providerId: 'google.com'
+        providerId: 'google.com',
+        gender: extraProfile?.gender,
+        region: extraProfile?.region
       });
     } catch (err: unknown) {
       const error = err as Error;
@@ -160,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const continueAsGuest = async (data?: { displayName?: string; interests?: string[]; languages?: string[]; country?: string }): Promise<boolean> => {
+  const continueAsGuest = async (data?: { displayName?: string; gender?: string; region?: string; interests?: string[]; languages?: string[]; country?: string }): Promise<boolean> => {
     try {
       const res = await fetch('/api/auth/guest', {
         method: 'POST',
