@@ -174,7 +174,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: Au
             </div>
 
             {/* Embedded Bollywood Music Player */}
-            <BollywoodMusicPlayer />
+            <BollywoodMusicPlayer compact />
           </div>
         </div>
 
@@ -249,7 +249,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: Au
                         : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <span>{g === 'Female' ? '👩 Female' : g === 'Male' ? '👨 Male' : '✨ Other'}</span>
+                    <span>{g === 'Female' ? '👩 Girl' : g === 'Male' ? '👦 Boy' : '✨ Other'}</span>
                   </button>
                 ))}
               </div>

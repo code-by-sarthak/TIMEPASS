@@ -1,12 +1,20 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { AuthProvider } from '@/lib/auth-context';
+import { MusicProvider } from '@/lib/music-context';
 
 export const metadata: Metadata = {
   title: 'TIMEPASS — Meet Someone New. Anytime.',
   description: 'Random one-to-one video calls and instant text chat with people worldwide. Fast, secure, and modern.',
   keywords: 'random video chat, omegle alternative, video call strangers, online meet, timepass',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#090a14',
 };
 
 export default function RootLayout({
@@ -22,7 +30,9 @@ export default function RootLayout({
       <body className="antialiased selection:bg-brand-500 selection:text-white">
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <MusicProvider>
+              {children}
+            </MusicProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -57,6 +57,25 @@ export type CallState =
   | 'ended' 
   | 'error';
 
+export interface RealLiveActivity {
+  id: string;
+  name: string;
+  region: string;
+  gender?: string;
+  mode: string;
+  timestamp: number;
+}
+
+export interface RealActiveUser {
+  socketId: string;
+  userId: string;
+  displayName: string;
+  gender?: string;
+  region?: string;
+  mode: string;
+  joinedAt: number;
+}
+
 export interface ChatMessage {
   id: string;
   senderId: string;

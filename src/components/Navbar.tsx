@@ -3,10 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Video, MessageSquare, Shield, User as UserIcon, Sun, Moon, LogIn, LogOut, Radio, Clock, ShieldAlert } from 'lucide-react';
+import { Video, MessageSquare, Users, Shield, User as UserIcon, Sun, Moon, LogIn, LogOut, Radio, Clock, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { getSocket } from '@/lib/socket';
+import TimepassLogo from '@/components/TimepassLogo';
 
 interface NavbarProps {
   onOpenAuth?: () => void;
@@ -38,18 +39,7 @@ export default function Navbar({ onOpenAuth }: NavbarProps) {
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-indigo-500/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl gradient-button flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-            <Clock className="w-5 h-5 animate-spin-slow" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-xl tracking-wider text-white">TIME</span>
-              <span className="font-extrabold text-xl tracking-wider gradient-text">PASS</span>
-            </div>
-            <p className="text-[10px] text-gray-400 -mt-1 hidden sm:block tracking-wide">Meet Someone New. Anytime.</p>
-          </div>
-        </Link>
+        <TimepassLogo size="md" />
 
         {/* Live Online Badge */}
         <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
@@ -75,15 +65,16 @@ export default function Navbar({ onOpenAuth }: NavbarProps) {
           </Link>
 
           <Link
-            href="/text"
+            href="/rooms"
             className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${
-              pathname === '/text'
+              pathname.startsWith('/rooms')
                 ? 'bg-accent-purple/20 text-purple-300 border border-purple-500/30'
                 : 'text-gray-300 hover:text-white hover:bg-white/5'
             }`}
           >
-            <MessageSquare className="w-4 h-4 text-accent-purple" />
-            <span className="hidden sm:inline">Text Chat</span>
+            <Users className="w-4 h-4 text-accent-purple" />
+            <span className="hidden sm:inline">8-Member Rooms</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-300 font-black border border-pink-500/30">8👥</span>
           </Link>
 
           <Link

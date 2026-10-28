@@ -9,6 +9,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        xs: "480px",
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
@@ -32,10 +35,10 @@ const config: Config = {
           emerald: "#10b981",
         },
         dark: {
-          surface: "#0f111a",
-          card: "#141726",
-          border: "#1f2438",
-          muted: "#94a3b8",
+          surface: "var(--surface-bg, #0f111a)",
+          card: "var(--card-solid, #141726)",
+          border: "var(--border-color, #1f2438)",
+          muted: "var(--text-secondary, #94a3b8)",
         }
       },
       backgroundImage: {

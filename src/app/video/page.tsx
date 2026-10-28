@@ -19,7 +19,10 @@ import {
   AlertCircle,
   Home,
   UserPlus,
-  Radio
+  Radio,
+  Sparkles,
+  RotateCw,
+  Users
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getSocket } from '@/lib/socket';
@@ -52,6 +55,8 @@ function VideoChatContent() {
   const [isPartnerMuted, setIsPartnerMuted] = useState(false);
   const [isPartnerVideoOff, setIsPartnerVideoOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isAvatarMode, setIsAvatarMode] = useState(false);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
 
   // Chat & Modals
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -66,6 +71,7 @@ function VideoChatContent() {
   const interests = searchParams.get('interests')?.split(',').filter(Boolean) || [];
   const language = searchParams.get('language') || 'English';
   const country = searchParams.get('country') || 'Global (Any)';
+  const requestedMode = searchParams.get('mode');
 
   // Refs for instances
   const webrtcRef = useRef<WebRTCManager | null>(null);
@@ -120,6 +126,7 @@ function VideoChatContent() {
       // Acquire camera and microphone
       const stream = await webrtcRef.current.getLocalMedia();
       setLocalStream(stream);
+      setIsAvatarMode(false);
 
       // Join socket queue
       const socket = getSocket(user?.id, user?.displayName);
@@ -140,16 +147,90 @@ function VideoChatContent() {
     } catch (err: unknown) {
       console.error('Camera/Mic permission failed:', err);
       setCallState('permission_denied');
-      setErrorMessage(
-        'Camera and microphone access was denied or not found. Please enable camera permissions in your browser address bar and try again.'
-      );
+
+      const isHttpMobile = typeof window !== 'undefined' && 
+        window.location.protocol === 'http:' && 
+        window.location.hostname !== 'localhost' && 
+        window.location.hostname !== '127.0.0.1';
+
+      if (isHttpMobile) {
+        setErrorMessage(
+          'Mobile browsers restrict physical webcam access over local HTTP (http://192.168.x.x). Tap "Continue in Avatar Mode" to connect and voice chat immediately!'
+        );
+      } else {
+        setErrorMessage(
+          'Camera and microphone access was denied or not detected. Please enable permissions in your browser address bar or continue instantly in Avatar Mode.'
+        );
+      }
     }
   }, [user, interests, language, country]);
 
-  // Start immediately on page mount
+  // Virtual Avatar Mode Handler (Unblocks users without webcam or on mobile HTTP)
+  const handleContinueAvatarMode = useCallback(async () => {
+    if (!webrtcRef.current) return;
+
+    try {
+      setCallState('permission_requested');
+      setErrorMessage(null);
+
+      // Generate virtual animated avatar stream (with mic if available, else synthetic silent baseline)
+      const stream = await webrtcRef.current.getAvatarMedia(
+        user?.displayName || 'TIMEPASS User',
+        user?.avatarUrl
+      );
+      setLocalStream(stream);
+      setIsAvatarMode(true);
+
+      // Join socket queue
+      const socket = getSocket(user?.id, user?.displayName);
+      socket.emit('join-queue', {
+        mode: 'video',
+        interests,
+        languages: [language],
+        country,
+        gender: user?.profile?.gender,
+        region: user?.profile?.region,
+        userId: user?.id,
+        displayName: user?.displayName,
+        avatarUrl: user?.avatarUrl,
+        previousPartnerId: partnerIdRef.current || undefined,
+      });
+
+      setCallState('searching');
+    } catch (err: unknown) {
+      console.error('Failed to start avatar mode:', err);
+      setCallState('permission_denied');
+      setErrorMessage('Could not initialize avatar stream. Please try reloading the page.');
+    }
+  }, [user, interests, language, country]);
+
+  // Dynamic Switch to Real Camera during active call
+  const handleSwitchToRealCamera = async () => {
+    if (!webrtcRef.current) return;
+    setIsSwitchingCamera(true);
+    try {
+      const success = await webrtcRef.current.switchToRealCamera();
+      if (success && webrtcRef.current.localStream) {
+        setLocalStream(webrtcRef.current.localStream);
+        setIsAvatarMode(false);
+      } else {
+        alert('Could not access real camera. Please check your browser address bar permissions.');
+      }
+    } catch (e) {
+      console.error('Camera switch error:', e);
+    } finally {
+      setIsSwitchingCamera(false);
+    }
+  };
+
+  // Start immediately on page mount (either avatar mode or video mode)
   useEffect(() => {
-    startVideoSession();
-  }, [startVideoSession]);
+    if (requestedMode === 'avatar') {
+      handleContinueAvatarMode();
+    } else {
+      startVideoSession();
+    }
+  }, [requestedMode, handleContinueAvatarMode, startVideoSession]);
 
   // Socket Event Handlers
   useEffect(() => {
@@ -417,7 +498,7 @@ function VideoChatContent() {
   return (
     <div
       ref={containerRef}
-      className="relative w-screen h-screen bg-black overflow-hidden flex flex-col select-none"
+      className="relative w-full min-h-screen h-[100dvh] bg-black overflow-hidden flex flex-col select-none"
     >
       {/* Top Header Bar */}
       <div className="absolute top-0 left-0 right-0 z-30 px-4 py-3 flex items-center justify-between pointer-events-none">
@@ -459,29 +540,70 @@ function VideoChatContent() {
       <div className="flex-1 relative flex overflow-hidden">
         {/* Video Canvas Area */}
         <div className="flex-1 relative flex flex-col md:flex-row p-3 gap-3 items-center justify-center">
-          {/* Permission Denied UI */}
+          {/* Permission Denied / Camera Fallback UI */}
           {callState === 'permission_denied' && (
-            <div className="max-w-md p-6 glass-panel rounded-2xl text-center border border-red-500/30">
-              <div className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mx-auto mb-3">
-                <AlertCircle className="w-6 h-6" />
+            <div className="max-w-md w-full p-6 sm:p-7 glass-panel rounded-3xl text-center border border-pink-500/30 shadow-[0_0_50px_rgba(236,72,153,0.18)] animate-in fade-in zoom-in-95 duration-300 mx-3">
+              {/* Animated Icon Badge */}
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-pink-500/20 to-purple-500/20 border border-pink-500/30 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-pink-500/10">
+                <Camera className="w-7 h-7 sm:w-8 sm:h-8 text-pink-400" />
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center text-[10px] font-black shadow">
+                  !
+                </span>
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Camera Permission Needed</h3>
-              <p className="text-xs text-gray-300 leading-relaxed mb-6">
-                {errorMessage}
+
+              <h3 className="text-xl sm:text-2xl font-black text-white mb-2 tracking-tight">
+                Camera Permission Needed
+              </h3>
+              
+              <p className="text-xs sm:text-sm text-gray-300 leading-relaxed mb-4 max-w-sm mx-auto">
+                {errorMessage || 'Camera access was denied or not detected. No worries! You can chat right now in Live Avatar Mode.'}
               </p>
-              <div className="flex items-center justify-center gap-3">
+
+              {/* Context helper notice */}
+              <div className="mb-5 p-3 rounded-2xl bg-white/5 border border-white/10 text-left text-xs text-gray-300 space-y-1.5">
+                <div className="flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong className="text-white">Live Avatar Mode:</strong> Connect instantly with animated avatar, live voice, reactions & Bollywood music without sharing your camera!
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-[11px] text-gray-400">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                  <span>
+                    To allow real camera: Tap the 🔒 or site settings icon in your browser address bar &gt; Allow Camera, then click <strong>Try Camera Again</strong>.
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2.5">
+                {/* PRIMARY ACTION: Avatar Mode (Instant Match) */}
                 <button
-                  onClick={startVideoSession}
-                  className="px-5 py-2.5 rounded-xl gradient-button text-white text-xs font-bold"
+                  onClick={handleContinueAvatarMode}
+                  className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:from-pink-400 hover:to-indigo-500 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl shadow-pink-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
-                  Try Again
+                  <Sparkles className="w-4 h-4 text-yellow-300 animate-spin" />
+                  <span>Continue in Avatar Mode (Instant Match)</span>
                 </button>
-                <button
-                  onClick={() => router.push('/text')}
-                  className="px-5 py-2.5 rounded-xl glass-panel text-gray-300 text-xs font-bold hover:bg-white/10"
-                >
-                  Switch to Text Chat
-                </button>
+
+                {/* SECONDARY ROW */}
+                <div className="grid grid-cols-2 gap-2 mt-0.5">
+                  <button
+                    onClick={startVideoSession}
+                    className="py-2.5 px-3 rounded-xl glass-toolbar border border-white/10 hover:bg-white/10 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 text-pink-400" />
+                    <span>Try Camera Again</span>
+                  </button>
+
+                  <button
+                    onClick={() => router.push('/rooms')}
+                    className="py-2.5 px-3 rounded-xl bg-pink-500/15 border border-pink-500/30 hover:bg-pink-500/25 text-pink-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Users className="w-3.5 h-3.5 text-pink-400" />
+                    <span>8-Member Rooms</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -530,7 +652,7 @@ function VideoChatContent() {
               </div>
 
               {/* Local User Preview (Picture-in-Picture / Floating) */}
-              <div className="absolute bottom-24 right-6 w-36 sm:w-48 md:w-56 aspect-video rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 z-20 transition-all hover:scale-105">
+              <div className="absolute bottom-20 sm:bottom-24 right-3 sm:right-6 w-28 xs:w-36 sm:w-48 md:w-56 aspect-video rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 z-20 transition-all hover:scale-105 group/pip">
                 <VideoPlayer
                   stream={localStream}
                   isLocal={true}
@@ -541,6 +663,23 @@ function VideoChatContent() {
                   gender={user?.profile?.gender}
                   region={user?.profile?.region}
                 />
+                {isAvatarMode && (
+                  <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-auto z-10">
+                    <span className="px-1.5 py-0.5 rounded-full bg-pink-500/80 backdrop-blur-md text-[9px] font-bold text-white shadow flex items-center gap-1">
+                      <span>🎭</span>
+                      <span className="hidden xs:inline">Avatar</span>
+                    </span>
+                    <button
+                      onClick={handleSwitchToRealCamera}
+                      disabled={isSwitchingCamera}
+                      className="px-2 py-0.5 rounded-full bg-black/70 hover:bg-black/95 backdrop-blur-md text-[9px] font-bold text-white border border-white/20 transition-all flex items-center gap-1 shadow hover:border-pink-500/50"
+                      title="Switch to Real Webcam"
+                    >
+                      <Camera className="w-2.5 h-2.5 text-pink-400" />
+                      <span>{isSwitchingCamera ? 'Connecting...' : 'Camera'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -560,7 +699,7 @@ function VideoChatContent() {
       </div>
 
       {/* Floating Call Control Toolbar */}
-      <div className="absolute bottom-5 left-0 right-0 z-30 pointer-events-auto">
+      <div className="absolute bottom-3 sm:bottom-5 left-0 right-0 z-30 pointer-events-auto px-2 sm:px-4 flex justify-center">
         <CallControls
           isMuted={isMuted}
           isVideoOff={isVideoOff}

@@ -35,9 +35,16 @@ A complete, production-ready full-stack random video and text discovery platform
 - **Prominent NEXT Button**: Automatically notifies peer, gracefully tears down peer connection while keeping camera warm, and immediately re-queues user. Keyboard shortcut: `[Esc]`.
 - **Integrated In-Call Chat**: Expandable drawer with live typing indicators (`Stranger is typing...`), emoji picker, and shared interest badges.
 
-### 4. Random Text Chat
-- Dedicated text-only queue with real-time delivery ticks, timestamps, copy-to-clipboard buttons, and typing notifications.
-- Shared interest highlights displayed at the top of the conversation.
+### 4. 8-Member Custom Rooms
+- **Squad Lounges**: Up to 8 concurrent members per room across categories:
+  - 🎮 **Gaming**: Squad matchmaking and squad mic chat (BGMI, Valorant, etc.)
+  - 🎵 **Music**: Late night Bollywood Antakshari & synchronized Jam sessions
+  - ☕ **Hangout**: Chai Pe Charcha & 3 AM thoughts
+  - 🍿 **Movies**: Cinema & Anime watch talk
+  - 💻 **Tech**: Night Owl Devs & Hackathon chill
+- **WebRTC Multi-Peer Mesh**: Real-time audio and video streaming directly between all 8 room participants.
+- **Synchronized Room DJ**: Play, sync, and jam to iconic Bollywood romance hits with room-wide track sync.
+- **Clean Group Room Chat**: Instant text messaging, floating emoji reactions, and live presence indicator.
 
 ### 5. Smart Matchmaking Engine
 - **Fair Scoring**:

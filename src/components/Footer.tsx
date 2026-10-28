@@ -29,7 +29,10 @@ export default function Footer() {
               <Link href="/video" className="hover:text-brand-400 transition-colors">Instant Video Chat</Link>
             </li>
             <li>
-              <Link href="/text" className="hover:text-brand-400 transition-colors">Anonymous Text Chat</Link>
+              <Link href="/rooms" className="hover:text-pink-400 transition-colors flex items-center gap-1.5">
+                <span>8-Member Custom Rooms</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-300 font-bold">8👥</span>
+              </Link>
             </li>
             <li>
               <Link href="/profile" className="hover:text-brand-400 transition-colors">Interest Filters</Link>

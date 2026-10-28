@@ -2,22 +2,75 @@ import { Server, Socket } from 'socket.io';
 import { matchmaker } from './matchmaker';
 import { filterProfanity, checkRateLimit, isUserBanned } from './moderation';
 import { prisma } from './db';
-import { QueuedUser } from '../src/lib/types';
+import { QueuedUser, RealLiveActivity, RealActiveUser } from '../src/lib/types';
+import { COMPANION_PROFILES, CompanionProfile, getCompanionReply } from './companion';
+import { customRoomManager } from './rooms';
+
+// Genuine live state tracking
+let totalConnectedSockets = 0;
+const realLiveActivities: RealLiveActivity[] = [];
+const realActiveUsers = new Map<string, RealActiveUser>();
+
+// Interactive Text Chat Companions
+interface CompanionSession {
+  roomId: string;
+  partner: CompanionProfile;
+  messageCount: number;
+}
+const activeCompanionSessions = new Map<string, CompanionSession>();
+const pendingCompanionTimers = new Map<string, NodeJS.Timeout>();
+
+export function getLiveStatus() {
+  return {
+    onlineCount: totalConnectedSockets,
+    activeUsers: Array.from(realActiveUsers.values()),
+    recentActivities: realLiveActivities.slice(0, 15)
+  };
+}
 
 export function setupSignaling(io: Server) {
-  // Track total connected sockets for genuine live stats
-  let totalConnectedSockets = 0;
-
   io.on('connection', (socket: Socket) => {
     totalConnectedSockets++;
     io.emit('online-count', { count: totalConnectedSockets });
 
-    // Send current online count on connect
+    // Send current online count and live status on connect
     socket.emit('online-count', { count: totalConnectedSockets });
+    socket.emit('live-status-sync', getLiveStatus());
 
     // User metadata attached to socket
     let currentUserId = (socket.handshake.query.userId as string) || `guest_${socket.id.substring(0, 8)}`;
-    let currentDisplayName = (socket.handshake.query.displayName as string) || `Stranger_${socket.id.substring(0, 4)}`;
+    let currentDisplayName = (socket.handshake.query.displayName as string) || `User_${socket.id.substring(0, 4)}`;
+
+    // 0. Register User Presence for Live Real Activity
+    socket.on('register-presence', (data: { displayName?: string; gender?: string; region?: string; userId?: string }) => {
+      if (data.userId) currentUserId = data.userId;
+      if (data.displayName) currentDisplayName = data.displayName;
+
+      const userObj: RealActiveUser = {
+        socketId: socket.id,
+        userId: currentUserId,
+        displayName: currentDisplayName,
+        gender: data.gender,
+        region: data.region || 'India',
+        mode: 'Online',
+        joinedAt: Date.now()
+      };
+      realActiveUsers.set(socket.id, userObj);
+
+      const act: RealLiveActivity = {
+        id: `pres_${socket.id}_${Date.now()}`,
+        name: currentDisplayName,
+        region: data.region || 'India',
+        gender: data.gender,
+        mode: 'joined TIMEPASS',
+        timestamp: Date.now()
+      };
+      realLiveActivities.unshift(act);
+      if (realLiveActivities.length > 30) realLiveActivities.pop();
+
+      io.emit('real-activity', act);
+      io.emit('active-users-update', Array.from(realActiveUsers.values()));
+    });
 
     // 1. Join Matchmaking Queue
     socket.on('join-queue', async (data: {
@@ -26,6 +79,7 @@ export function setupSignaling(io: Server) {
       languages?: string[];
       country?: string;
       gender?: string;
+      genderPref?: string;
       region?: string;
       userId?: string;
       displayName?: string;
@@ -36,12 +90,46 @@ export function setupSignaling(io: Server) {
         if (data.userId) currentUserId = data.userId;
         if (data.displayName) currentDisplayName = data.displayName;
 
+        // Register in active real users
+        const activeUser: RealActiveUser = {
+          socketId: socket.id,
+          userId: currentUserId,
+          displayName: currentDisplayName,
+          gender: data.gender,
+          region: data.region || 'India',
+          mode: data.mode === 'video' ? 'Video Queue' : 'Text Queue',
+          joinedAt: Date.now()
+        };
+        realActiveUsers.set(socket.id, activeUser);
+
+        // Broadcast real activity
+        const act: RealLiveActivity = {
+          id: `queue_${socket.id}_${Date.now()}`,
+          name: currentDisplayName,
+          region: data.region || 'India',
+          gender: data.gender,
+          mode: `joined ${data.mode === 'video' ? 'Video Call' : 'Text Chat'}`,
+          timestamp: Date.now()
+        };
+        realLiveActivities.unshift(act);
+        if (realLiveActivities.length > 30) realLiveActivities.pop();
+
+        io.emit('real-activity', act);
+        io.emit('active-users-update', Array.from(realActiveUsers.values()));
+
         // Check ban status
         const banCheck = await isUserBanned(currentUserId);
         if (banCheck.banned) {
           socket.emit('banned-notice', { reason: banCheck.reason });
           return;
         }
+
+        // Clean up any existing companion session or pending timers
+        if (pendingCompanionTimers.has(socket.id)) {
+          clearTimeout(pendingCompanionTimers.get(socket.id)!);
+          pendingCompanionTimers.delete(socket.id);
+        }
+        activeCompanionSessions.delete(socket.id);
 
         // Clean up any existing room this socket is in
         const existingRoom = matchmaker.getRoomBySocketId(socket.id);
@@ -77,6 +165,16 @@ export function setupSignaling(io: Server) {
         if (matchResult && matchResult.matched && matchResult.room && matchResult.partner) {
           const room = matchResult.room;
           const partner = matchResult.partner;
+
+          // Clear any companion timers for both sockets
+          if (pendingCompanionTimers.has(socket.id)) {
+            clearTimeout(pendingCompanionTimers.get(socket.id)!);
+            pendingCompanionTimers.delete(socket.id);
+          }
+          if (pendingCompanionTimers.has(partner.socketId)) {
+            clearTimeout(pendingCompanionTimers.get(partner.socketId)!);
+            pendingCompanionTimers.delete(partner.socketId);
+          }
 
           // Compute shared interests
           const sharedInterests = user.interests.filter(i => partner.interests.includes(i));
@@ -124,6 +222,19 @@ export function setupSignaling(io: Server) {
             }
           });
 
+          // Broadcast real match activity
+          const matchAct: RealLiveActivity = {
+            id: `match_${room.roomId}_${Date.now()}`,
+            name: `${user.displayName} & ${partner.displayName}`,
+            region: `${user.region || 'Nearby'} · ${partner.region || 'Nearby'}`,
+            gender: `${user.gender || ''} & ${partner.gender || ''}`,
+            mode: `Matched on ${room.mode === 'video' ? 'Video' : 'Text'}`,
+            timestamp: Date.now()
+          };
+          realLiveActivities.unshift(matchAct);
+          if (realLiveActivities.length > 30) realLiveActivities.pop();
+          io.emit('real-activity', matchAct);
+
           // Log conversation session asynchronously in DB
           try {
             await prisma.conversation.create({
@@ -137,6 +248,71 @@ export function setupSignaling(io: Server) {
           } catch {
             // Non-blocking
           }
+        } else if (data.mode === 'text') {
+          // If in text mode and no real human joined within 1.5s, auto-pair with an interactive companion!
+          const timer = setTimeout(() => {
+            pendingCompanionTimers.delete(socket.id);
+            if (!socket.connected) return;
+
+            // Remove from queue
+            matchmaker.dequeue(socket.id);
+
+            // Select companion
+            let pool = COMPANION_PROFILES;
+            if (data.genderPref === 'Girls' || user.gender === 'Girls') {
+              pool = COMPANION_PROFILES.filter(c => c.gender === 'Girls');
+            } else if (data.genderPref === 'Boys' || user.gender === 'Boys') {
+              pool = COMPANION_PROFILES.filter(c => c.gender === 'Boys');
+            }
+            if (!pool || pool.length === 0) pool = COMPANION_PROFILES;
+            const companion = pool[Math.floor(Math.random() * pool.length)];
+
+            const roomId = `room_comp_${socket.id}_${Date.now()}`;
+            activeCompanionSessions.set(socket.id, {
+              roomId,
+              partner: companion,
+              messageCount: 0
+            });
+
+            const sharedInterests = (user.interests || []).filter(i => companion.interests.includes(i));
+
+            socket.join(roomId);
+            socket.emit('match-found', {
+              roomId,
+              mode: 'text',
+              initiator: true,
+              partner: {
+                id: companion.id,
+                displayName: companion.displayName,
+                avatarUrl: companion.avatarUrl,
+                gender: companion.gender,
+                region: companion.region,
+                country: 'India',
+                interests: companion.interests,
+                languages: ['English', 'Hindi'],
+                sharedInterests: sharedInterests.length > 0 ? sharedInterests : ['Bollywood', 'Music']
+              }
+            });
+
+            // Companion sends a warm initial greeting
+            setTimeout(() => {
+              if (!activeCompanionSessions.has(socket.id) || !socket.connected) return;
+              socket.emit('partner-typing', { isTyping: true });
+              setTimeout(() => {
+                if (!activeCompanionSessions.has(socket.id) || !socket.connected) return;
+                socket.emit('partner-typing', { isTyping: false });
+                socket.emit('receive-message', {
+                  id: `msg_comp_${Date.now()}`,
+                  senderId: companion.id,
+                  senderName: companion.displayName,
+                  content: `Hey! How's your night going? ✨`,
+                  timestamp: new Date().toISOString()
+                });
+              }, 1100);
+            }, 700);
+          }, 1500);
+
+          pendingCompanionTimers.set(socket.id, timer);
         }
       } catch (err) {
         console.error('Error in join-queue:', err);
@@ -146,6 +322,11 @@ export function setupSignaling(io: Server) {
 
     // 2. Leave Matchmaking Queue
     socket.on('leave-queue', () => {
+      if (pendingCompanionTimers.has(socket.id)) {
+        clearTimeout(pendingCompanionTimers.get(socket.id)!);
+        pendingCompanionTimers.delete(socket.id);
+      }
+      activeCompanionSessions.delete(socket.id);
       matchmaker.dequeue(socket.id);
       socket.emit('queue-status', { status: 'idle' });
     });
@@ -204,12 +385,7 @@ export function setupSignaling(io: Server) {
         return;
       }
 
-      const room = matchmaker.getRoomBySocketId(socket.id);
-      if (!room) return;
-
       const { cleanText } = filterProfanity(data.content.trim());
-      const partnerSocketId = room.user1.socketId === socket.id ? room.user2.socketId : room.user1.socketId;
-
       const messagePayload = {
         id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         senderId: currentUserId,
@@ -217,6 +393,49 @@ export function setupSignaling(io: Server) {
         content: cleanText,
         timestamp: new Date().toISOString(),
       };
+
+      // Check if user is in an interactive Companion session
+      const companionSession = activeCompanionSessions.get(socket.id);
+      if (companionSession) {
+        socket.emit('message-sent', messagePayload);
+        companionSession.messageCount++;
+
+        setTimeout(() => {
+          if (!activeCompanionSessions.has(socket.id) || !socket.connected) return;
+          socket.emit('partner-typing', { isTyping: true });
+
+          setTimeout(() => {
+            if (!activeCompanionSessions.has(socket.id) || !socket.connected) return;
+            socket.emit('partner-typing', { isTyping: false });
+
+            const reply = getCompanionReply(cleanText, companionSession.partner, companionSession.messageCount);
+            socket.emit('receive-message', {
+              id: `msg_comp_${Date.now()}`,
+              senderId: companionSession.partner.id,
+              senderName: companionSession.partner.displayName,
+              content: reply,
+              timestamp: new Date().toISOString()
+            });
+
+            // 30% chance companion reacts with an emoji
+            if (Math.random() < 0.3) {
+              setTimeout(() => {
+                if (activeCompanionSessions.has(socket.id) && socket.connected) {
+                  const reactions = ['❤️', '🔥', '😂', '✨', '👏'];
+                  const picked = reactions[Math.floor(Math.random() * reactions.length)];
+                  socket.emit('receive-reaction', { emoji: picked, senderId: companionSession.partner.id });
+                }
+              }, 700);
+            }
+          }, 1200);
+        }, 350);
+        return;
+      }
+
+      const room = matchmaker.getRoomBySocketId(socket.id);
+      if (!room) return;
+
+      const partnerSocketId = room.user1.socketId === socket.id ? room.user2.socketId : room.user1.socketId;
 
       // Deliver to partner
       io.to(partnerSocketId).emit('receive-message', messagePayload);
@@ -233,8 +452,37 @@ export function setupSignaling(io: Server) {
       }
     });
 
+    // 8.1 Real-time Floating Reactions (Hearts, Fire, Laughs, etc.)
+    socket.on('send-reaction', (data: { emoji: string }) => {
+      const companionSession = activeCompanionSessions.get(socket.id);
+      if (companionSession && data?.emoji) {
+        if (Math.random() < 0.5) {
+          setTimeout(() => {
+            if (activeCompanionSessions.has(socket.id) && socket.connected) {
+              socket.emit('receive-reaction', { emoji: data.emoji, senderId: companionSession.partner.id });
+            }
+          }, 600);
+        }
+        return;
+      }
+
+      const room = matchmaker.getRoomBySocketId(socket.id);
+      if (room && data?.emoji) {
+        const partnerSocketId = room.user1.socketId === socket.id ? room.user2.socketId : room.user1.socketId;
+        io.to(partnerSocketId).emit('receive-reaction', { emoji: data.emoji, senderId: currentUserId });
+      }
+    });
+
     // 9. NEXT Button
     socket.on('call-next', (data?: { interests?: string[]; languages?: string[]; country?: string }) => {
+      if (pendingCompanionTimers.has(socket.id)) {
+        clearTimeout(pendingCompanionTimers.get(socket.id)!);
+        pendingCompanionTimers.delete(socket.id);
+      }
+      if (activeCompanionSessions.has(socket.id)) {
+        activeCompanionSessions.delete(socket.id);
+      }
+
       const room = matchmaker.getRoomBySocketId(socket.id);
       let previousPartnerId: string | undefined;
 
@@ -258,16 +506,26 @@ export function setupSignaling(io: Server) {
 
       // Re-queue this user automatically
       socket.emit('queue-status', { status: 'searching' });
-      socket.emit('partner-left', { reason: 'Finding next person...' });
 
       // Automatically search for next partner
       setTimeout(() => {
         socket.emit('trigger-requeue', { previousPartnerId });
-      }, 100);
+      }, 50);
     });
 
     // 10. END CALL Button
     socket.on('call-end', () => {
+      if (pendingCompanionTimers.has(socket.id)) {
+        clearTimeout(pendingCompanionTimers.get(socket.id)!);
+        pendingCompanionTimers.delete(socket.id);
+      }
+      if (activeCompanionSessions.has(socket.id)) {
+        activeCompanionSessions.delete(socket.id);
+        matchmaker.dequeue(socket.id);
+        socket.emit('call-ended');
+        return;
+      }
+
       const room = matchmaker.getRoomBySocketId(socket.id);
       if (room) {
         const partnerSocketId = room.user1.socketId === socket.id ? room.user2.socketId : room.user1.socketId;
@@ -354,10 +612,185 @@ export function setupSignaling(io: Server) {
       }
     });
 
+    // 12.1 8-Member Custom Room System
+    socket.on('get-custom-rooms', () => {
+      socket.emit('custom-rooms-list', customRoomManager.getAllRooms());
+    });
+
+    socket.on('join-custom-room', (data: {
+      roomId: string;
+      passcode?: string;
+      displayName?: string;
+      avatarUrl?: string;
+      gender?: string;
+      region?: string;
+    }) => {
+      const result = customRoomManager.joinRoom(data.roomId, {
+        socketId: socket.id,
+        userId: currentUserId,
+        displayName: data.displayName || currentDisplayName,
+        avatarUrl: data.avatarUrl,
+        gender: data.gender,
+        region: data.region || 'India',
+        isMuted: false,
+        isVideoOff: false
+      }, data.passcode);
+
+      if (!result.success || !result.room || !result.member) {
+        socket.emit('custom-room-error', { message: result.error || 'Failed to join room' });
+        return;
+      }
+
+      socket.join(data.roomId);
+
+      // Send current room state to joining member
+      socket.emit('custom-room-joined', {
+        room: {
+          id: result.room.id,
+          name: result.room.name,
+          category: result.room.category,
+          description: result.room.description,
+          hostId: result.room.hostId,
+          hostName: result.room.hostName,
+          maxMembers: result.room.maxMembers,
+          nowPlayingTrackId: result.room.nowPlayingTrackId,
+          members: Array.from(result.room.members.values())
+        },
+        myMember: result.member
+      });
+
+      // Broadcast to all other members in this room
+      socket.to(data.roomId).emit('custom-room-member-joined', {
+        member: result.member,
+        memberCount: result.room.members.size
+      });
+
+      // Broadcast updated room list to all clients in lobby
+      io.emit('custom-rooms-updated', customRoomManager.getAllRooms());
+    });
+
+    socket.on('leave-custom-room', () => {
+      const { roomId, member } = customRoomManager.leaveRoom(socket.id);
+      if (roomId) {
+        socket.leave(roomId);
+        if (member) {
+          io.to(roomId).emit('custom-room-member-left', {
+            socketId: socket.id,
+            userId: member.userId,
+            displayName: member.displayName
+          });
+        }
+        io.emit('custom-rooms-updated', customRoomManager.getAllRooms());
+      }
+    });
+
+    socket.on('custom-room-message', (data: { content: string }) => {
+      const room = customRoomManager.getRoomBySocketId(socket.id);
+      if (!room || !data.content || !data.content.trim()) return;
+
+      const { cleanText } = filterProfanity(data.content.trim());
+      const msg = {
+        id: `rmsg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        senderId: currentUserId,
+        senderName: currentDisplayName,
+        content: cleanText,
+        timestamp: new Date().toISOString()
+      };
+
+      io.to(room.id).emit('custom-room-new-message', msg);
+    });
+
+    socket.on('custom-room-reaction', (data: { emoji: string }) => {
+      const room = customRoomManager.getRoomBySocketId(socket.id);
+      if (!room || !data.emoji) return;
+
+      io.to(room.id).emit('custom-room-new-reaction', {
+        emoji: data.emoji,
+        senderName: currentDisplayName
+      });
+    });
+
+    socket.on('custom-room-sync-track', (data: { trackId: string }) => {
+      const room = customRoomManager.getRoomBySocketId(socket.id);
+      if (!room || !data.trackId) return;
+
+      customRoomManager.updateRoomTrack(room.id, data.trackId);
+      io.to(room.id).emit('custom-room-track-changed', {
+        trackId: data.trackId,
+        changedBy: currentDisplayName
+      });
+    });
+
+    socket.on('custom-room-toggle-media', (data: { isMuted?: boolean; isVideoOff?: boolean }) => {
+      const room = customRoomManager.getRoomBySocketId(socket.id);
+      if (!room) return;
+
+      const updated = customRoomManager.updateMemberMedia(socket.id, data);
+      if (updated) {
+        io.to(room.id).emit('custom-room-member-media-changed', {
+          socketId: socket.id,
+          isMuted: updated.isMuted,
+          isVideoOff: updated.isVideoOff
+        });
+      }
+    });
+
+    // 12.2 Custom Room WebRTC Mesh Signaling (Real Audio & Video between room peers)
+    socket.on('custom-room-signal-offer', (data: {
+      targetSocketId: string;
+      sdp: any;
+    }) => {
+      io.to(data.targetSocketId).emit('custom-room-signal-offer', {
+        callerSocketId: socket.id,
+        sdp: data.sdp
+      });
+    });
+
+    socket.on('custom-room-signal-answer', (data: {
+      targetSocketId: string;
+      sdp: any;
+    }) => {
+      io.to(data.targetSocketId).emit('custom-room-signal-answer', {
+        responderSocketId: socket.id,
+        sdp: data.sdp
+      });
+    });
+
+    socket.on('custom-room-signal-ice', (data: {
+      targetSocketId: string;
+      candidate: any;
+    }) => {
+      io.to(data.targetSocketId).emit('custom-room-signal-ice', {
+        senderSocketId: socket.id,
+        candidate: data.candidate
+      });
+    });
+
     // 13. Disconnect cleanup
     socket.on('disconnect', () => {
       totalConnectedSockets = Math.max(0, totalConnectedSockets - 1);
+      realActiveUsers.delete(socket.id);
       io.emit('online-count', { count: totalConnectedSockets });
+      io.emit('active-users-update', Array.from(realActiveUsers.values()));
+
+      if (pendingCompanionTimers.has(socket.id)) {
+        clearTimeout(pendingCompanionTimers.get(socket.id)!);
+        pendingCompanionTimers.delete(socket.id);
+      }
+      activeCompanionSessions.delete(socket.id);
+
+      // Clean up custom room participation if any
+      const roomLeave = customRoomManager.leaveRoom(socket.id);
+      if (roomLeave?.roomId) {
+        if (roomLeave.member) {
+          io.to(roomLeave.roomId).emit('custom-room-member-left', {
+            socketId: socket.id,
+            userId: roomLeave.member.userId,
+            displayName: roomLeave.member.displayName
+          });
+        }
+        io.emit('custom-rooms-updated', customRoomManager.getAllRooms());
+      }
 
       matchmaker.dequeue(socket.id);
 

@@ -8,7 +8,7 @@ import authRoutes from './routes/auth';
 import profileRoutes from './routes/profile';
 import adminRoutes from './routes/admin';
 import roomRoutes from './routes/rooms';
-import { setupSignaling } from './signaling';
+import { setupSignaling, getLiveStatus } from './signaling';
 
 dotenv.config();
 
@@ -23,15 +23,21 @@ async function startServer() {
   const expressApp = express();
   const server = http.createServer(expressApp);
 
-  // Enable CORS & JSON parsing
+  // Enable CORS & JSON parsing & static assets
   expressApp.use(cors());
   expressApp.use(express.json());
+  expressApp.use(express.static('public'));
 
   // Attach API routes
   expressApp.use('/api/auth', authRoutes);
   expressApp.use('/api/profile', profileRoutes);
   expressApp.use('/api/admin', adminRoutes);
   expressApp.use('/api/rooms', roomRoutes);
+
+  // Live real data endpoint
+  expressApp.get('/api/live-status', (req, res) => {
+    res.json(getLiveStatus());
+  });
 
   // Health check endpoint
   expressApp.get('/api/health', (req, res) => {
@@ -64,7 +70,7 @@ async function startServer() {
     console.log(`\n======================================================`);
     console.log(`🚀 TIMEPASS platform is LIVE on http://localhost:${port}`);
     console.log(`📡 WebRTC Signaling & Socket.IO active`);
-    console.log(`🛡️  Admin Dashboard available at /admin (Key: ${process.env.ADMIN_SECRET_KEY || 'admin123'})`);
+    console.log(`🛡️  Admin Dashboard available at /admin (Protected by Master Password)`);
     console.log(`======================================================\n`);
   });
 }

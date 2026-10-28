@@ -73,7 +73,7 @@ export default function ChatDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="flex flex-col h-full bg-dark-card/95 backdrop-blur-xl border-l border-white/10 w-full sm:w-80 md:w-96 shadow-2xl relative transition-all">
+    <div className="fixed inset-y-0 right-0 z-40 sm:static sm:h-full flex flex-col bg-dark-card/95 backdrop-blur-xl border-l border-white/10 w-full sm:w-80 md:w-96 shadow-2xl transition-all">
       {/* Header */}
       <div className="p-3.5 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { soundManager } from './sound';
 
 type Theme = 'dark' | 'light';
 
@@ -19,25 +20,38 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark');
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('timepass_theme') as Theme | null;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+  const applyThemeClass = (t: Theme) => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (t === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.style.colorScheme = 'light';
     } else {
-      setThemeState('dark');
-      document.documentElement.classList.add('dark');
+      root.classList.remove('light');
+      root.classList.add('dark');
+      root.style.colorScheme = 'dark';
     }
+  };
+
+  useEffect(() => {
+    const savedTheme = (localStorage.getItem('timepass_theme') as Theme) || 'dark';
+    setThemeState(savedTheme);
+    applyThemeClass(savedTheme);
   }, []);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem('timepass_theme', newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
+    try {
+      localStorage.setItem('timepass_theme', newTheme);
+    } catch {}
+    applyThemeClass(newTheme);
+    soundManager.playPop();
   };
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
   };
 
   return (

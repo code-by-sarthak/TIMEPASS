@@ -109,7 +109,7 @@ describe('TIMEPASS End-to-End Server API & Signaling', () => {
 
   it('GET /api/admin/stats returns accurate real-time metrics with admin key', async () => {
     const res = await fetch(`http://localhost:${testPort}/api/admin/stats`, {
-      headers: { 'x-admin-key': 'admin123' }
+      headers: { 'x-admin-key': process.env.ADMIN_SECRET_KEY || '8299435591' }
     });
     expect(res.ok).toBe(true);
     const data = await res.json();

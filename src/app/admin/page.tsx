@@ -21,7 +21,7 @@ import Footer from '@/components/Footer';
 import { AdminStats, ReportItem } from '@/lib/types';
 
 export default function AdminPage() {
-  const [adminKey, setAdminKey] = useState('admin123');
+  const [adminKey, setAdminKey] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -66,11 +66,6 @@ export default function AdminPage() {
       setIsAuthenticated(false);
     }
   };
-
-  useEffect(() => {
-    // Auto check default key
-    fetchDashboardData(adminKey);
-  }, []);
 
   const handleAction = async (reportId: string | null, targetUserId: string, action: string) => {
     try {
@@ -117,7 +112,7 @@ export default function AdminPage() {
             <form onSubmit={(e) => { e.preventDefault(); fetchDashboardData(adminKey); }} className="space-y-4">
               <input
                 type="password"
-                placeholder="Enter Admin Key (default: admin123)"
+                placeholder="Enter Master Password..."
                 value={adminKey}
                 onChange={(e) => setAdminKey(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs text-center tracking-widest focus:outline-none focus:border-brand-500"

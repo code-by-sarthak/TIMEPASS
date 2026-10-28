@@ -5,13 +5,13 @@ import { matchmaker } from '../matchmaker';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'timepass_jwt_production_secret_key_needs_to_be_long_and_secure_64chars';
-const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || 'admin123';
+const getAdminKey = () => process.env.ADMIN_SECRET_KEY || '8299435591';
 
 // Admin / Moderator Auth Middleware
 async function adminMiddleware(req: Request, res: Response, next: () => void) {
   // Allow secret key header for quick admin dashboard authentication
   const secretKey = req.headers['x-admin-key'];
-  if (secretKey === ADMIN_SECRET_KEY) {
+  if (secretKey === getAdminKey()) {
     return next();
   }
 
