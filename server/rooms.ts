@@ -255,6 +255,66 @@ class CustomRoomManager {
     return { roomId, member, roomEmpty };
   }
 
+  // Force terminate/close a room (Admin power)
+  public terminateRoom(roomId: string): { success: boolean; affectedSockets: string[] } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { success: false, affectedSockets: [] };
+
+    const affectedSockets = Array.from(room.members.keys());
+    for (const sId of affectedSockets) {
+      this.socketToRoom.delete(sId);
+    }
+
+    const isSeeded = [
+      'bgmi-valorant-squad',
+      'bollywood-antakshari-jam',
+      'chai-pe-charcha-hangout',
+      'cinema-anime-watch-party',
+      'night-owl-devs-lounge'
+    ].includes(room.id);
+
+    if (isSeeded) {
+      room.members.clear();
+      room.hostName = '';
+      room.hostId = 'system';
+    } else {
+      this.rooms.delete(roomId);
+    }
+
+    return { success: true, affectedSockets };
+  }
+
+  // Get detailed rooms for Admin dashboard
+  public getRoomsDetailed(): Array<{
+    id: string;
+    name: string;
+    category: string;
+    description: string;
+    hostName: string;
+    isSystemRoom: boolean;
+    memberCount: number;
+    maxMembers: number;
+    members: RoomMember[];
+    createdAt: number;
+  }> {
+    const list = [];
+    for (const room of this.rooms.values()) {
+      list.push({
+        id: room.id,
+        name: room.name,
+        category: room.category,
+        description: room.description,
+        hostName: room.hostName || 'Community Host',
+        isSystemRoom: room.isSystemRoom ?? true,
+        memberCount: room.members.size,
+        maxMembers: room.maxMembers || 8,
+        members: Array.from(room.members.values()),
+        createdAt: room.createdAt,
+      });
+    }
+    return list.sort((a, b) => b.memberCount - a.memberCount);
+  }
+
   public updateMemberMedia(socketId: string, updates: { isMuted?: boolean; isVideoOff?: boolean }): RoomMember | undefined {
     const roomId = this.socketToRoom.get(socketId);
     if (!roomId) return undefined;

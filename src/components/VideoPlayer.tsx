@@ -29,6 +29,7 @@ export default function VideoPlayer({
   qualityBadge,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -43,8 +44,35 @@ export default function VideoPlayer({
     }
   }, [stream]);
 
+  // Dedicated unmuted audio element for remote stream (crucial for mobile Safari & Android Chrome)
+  useEffect(() => {
+    if (!isLocal && audioRef.current && stream) {
+      if (audioRef.current.srcObject !== stream) {
+        audioRef.current.srcObject = stream;
+      }
+      audioRef.current.play().catch(() => {
+        const unlock = () => {
+          audioRef.current?.play().catch(() => {});
+          window.removeEventListener('click', unlock);
+          window.removeEventListener('touchstart', unlock);
+        };
+        window.addEventListener('click', unlock, { once: true });
+        window.addEventListener('touchstart', unlock, { once: true });
+      });
+    }
+  }, [isLocal, stream]);
+
   return (
     <div className="relative w-full h-full bg-dark-card rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center shadow-xl group">
+      {/* Dedicated Remote Audio Channel */}
+      {!isLocal && (
+        <audio
+          ref={audioRef}
+          autoPlay
+          playsInline
+        />
+      )}
+
       {/* Video Element */}
       <video
         ref={videoRef}

@@ -10,6 +10,11 @@ import { customRoomManager } from './rooms';
 let totalConnectedSockets = 0;
 const realLiveActivities: RealLiveActivity[] = [];
 const realActiveUsers = new Map<string, RealActiveUser>();
+let globalIo: Server | null = null;
+
+export function getIO(): Server | null {
+  return globalIo;
+}
 
 // Interactive Text Chat Companions
 interface CompanionSession {
@@ -28,7 +33,46 @@ export function getLiveStatus() {
   };
 }
 
+export function getActiveSocketsList() {
+  return Array.from(realActiveUsers.values());
+}
+
+export function broadcastSystemAnnouncement(title: string, message: string) {
+  if (!globalIo) return false;
+  globalIo.emit('system-announcement', {
+    id: `ann_${Date.now()}`,
+    title: title || 'Admin Announcement',
+    message,
+    timestamp: new Date().toISOString()
+  });
+  return true;
+}
+
+export function adminKickSocket(socketId: string, reason: string = 'Kicked by Administrator') {
+  if (!globalIo) return false;
+  const targetSocket = globalIo.sockets.sockets.get(socketId);
+  if (targetSocket) {
+    targetSocket.emit('admin-kick', { reason });
+    targetSocket.disconnect(true);
+    return true;
+  }
+  return false;
+}
+
+export function adminTerminateRoom(roomId: string, reason: string = 'Room closed by Administrator') {
+  if (!globalIo) return false;
+  // Notify room members
+  globalIo.to(roomId).emit('custom-room-terminated', { roomId, reason });
+  const result = customRoomManager.terminateRoom(roomId);
+  // Sockets leave room room
+  globalIo.in(roomId).socketsLeave(roomId);
+  // Broadcast updated room directory
+  globalIo.emit('custom-rooms-updated', customRoomManager.getAllRooms());
+  return result.success;
+}
+
 export function setupSignaling(io: Server) {
+  globalIo = io;
   io.on('connection', (socket: Socket) => {
     totalConnectedSockets++;
     io.emit('online-count', { count: totalConnectedSockets });

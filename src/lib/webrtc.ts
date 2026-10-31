@@ -32,48 +32,103 @@ export class WebRTCManager {
     if (onIceCandidate) this.onIceCandidateCallback = onIceCandidate;
   }
 
-  // 1. Initialize Local Audio/Video Stream
+  // Ensure all media tracks are active and unmuted
+  private ensureTracksActive(stream: MediaStream): void {
+    stream.getTracks().forEach((track) => {
+      track.enabled = true;
+    });
+  }
+
+  // 1. Initialize Local Audio/Video Stream with Step-Down Progressive Fallbacks
   public async getLocalMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
     if (this.localStream && this.localStream.active && !this.isAvatarMode) {
       return this.localStream;
     }
 
-    const defaultConstraints: MediaStreamConstraints = {
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: this.currentFacingMode,
-      },
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    };
+    const hasMediaDevices = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error('Camera and microphone access is restricted or unsupported on this origin (requires HTTPS or localhost on mobile).');
-    }
-
-    try {
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints || defaultConstraints);
-      this.isAvatarMode = false;
-      return this.localStream;
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.warn('Initial getUserMedia error, attempting audio-only fallback:', error.message);
-      // Fallback if video camera is unavailable or denied
-      if (constraints?.video !== false && navigator.mediaDevices?.getUserMedia) {
-        try {
-          this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          this.isAvatarMode = false;
-          return this.localStream;
-        } catch {
-          throw error;
-        }
+    // ATTEMPT 1: High Definition Video + Crystal Clear Mic
+    if (hasMediaDevices) {
+      try {
+        const hdConstraints: MediaStreamConstraints = constraints || {
+          video: {
+            width: { ideal: 1280, min: 320 },
+            height: { ideal: 720, min: 240 },
+            facingMode: this.currentFacingMode,
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(hdConstraints);
+        this.ensureTracksActive(stream);
+        this.localStream = stream;
+        this.isAvatarMode = false;
+        return this.localStream;
+      } catch (err1) {
+        console.warn('Attempt 1 (HD getUserMedia) failed, falling back to basic camera:', err1);
       }
-      throw error;
+
+      // ATTEMPT 2: Basic Camera Facing Mode + Standard Mic
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: this.currentFacingMode },
+          audio: true,
+        });
+        this.ensureTracksActive(stream);
+        this.localStream = stream;
+        this.isAvatarMode = false;
+        return this.localStream;
+      } catch (err2) {
+        console.warn('Attempt 2 (Basic facingMode) failed, falling back to simple video:', err2);
+      }
+
+      // ATTEMPT 3: Simple Bare Minimum Video + Mic
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        this.ensureTracksActive(stream);
+        this.localStream = stream;
+        this.isAvatarMode = false;
+        return this.localStream;
+      } catch (err3) {
+        console.warn('Attempt 3 (Simple video) failed, attempting microphone-only + live avatar:', err3);
+      }
+
+      // ATTEMPT 4: Real Microphone Only + Animated Avatar Video Canvas Track
+      try {
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+        const audioTrack = audioStream.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = true;
+          // Generate avatar video canvas track
+          const avatarStream = await this.getAvatarMedia('TIMEPASS Chatter');
+          const syntheticAudio = avatarStream.getAudioTracks()[0];
+          if (syntheticAudio) avatarStream.removeTrack(syntheticAudio);
+          avatarStream.addTrack(audioTrack);
+          this.localStream = avatarStream;
+          this.isAvatarMode = true;
+          return this.localStream;
+        }
+      } catch (err4) {
+        console.warn('Attempt 4 (Microphone-only) failed or denied:', err4);
+      }
     }
+
+    // ATTEMPT 5: Virtual Avatar Mode (For Mobile HTTP LAN or Denied Permissions)
+    // Ensures users on mobile phones or restricted origins NEVER get locked out!
+    console.warn('Physical camera/mic inaccessible. Activating Live Animated Avatar Mode seamlessly.');
+    const fallbackStream = await this.getAvatarMedia('TIMEPASS Chatter');
+    this.localStream = fallbackStream;
+    this.isAvatarMode = true;
+    return this.localStream;
   }
 
   // 2. Initialize RTCPeerConnection

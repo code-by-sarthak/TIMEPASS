@@ -83,6 +83,11 @@ class SoundManager {
     }
   }
 
+  // Play high-priority system announcement chime
+  public playNotification() {
+    this.playMessagePing();
+  }
+
   // Play disconnect / skip sound
   public playDisconnect() {
     if (!this.soundEnabled) return;

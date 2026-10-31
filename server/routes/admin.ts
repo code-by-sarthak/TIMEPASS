@@ -2,6 +2,13 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { matchmaker } from '../matchmaker';
+import { customRoomManager } from '../rooms';
+import { 
+  broadcastSystemAnnouncement, 
+  adminKickSocket, 
+  adminTerminateRoom, 
+  getActiveSocketsList 
+} from '../signaling';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'timepass_jwt_production_secret_key_needs_to_be_long_and_secure_64chars';
@@ -9,8 +16,8 @@ const getAdminKey = () => process.env.ADMIN_SECRET_KEY || '8299435591';
 
 // Admin / Moderator Auth Middleware
 async function adminMiddleware(req: Request, res: Response, next: () => void) {
-  // Allow secret key header for quick admin dashboard authentication
-  const secretKey = req.headers['x-admin-key'];
+  // Allow secret key header, query param, or body key for smooth authentication
+  const secretKey = (req.headers['x-admin-key'] as string) || (req.query.key as string) || req.body?.adminKey;
   if (secretKey === getAdminKey()) {
     return next();
   }
@@ -204,6 +211,76 @@ router.get('/users', adminMiddleware, async (req: Request, res: Response) => {
     res.json({ users });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// 5. Global System Announcement Broadcast
+router.post('/broadcast', adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { title, message } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Announcement message is required' });
+    }
+
+    const sent = broadcastSystemAnnouncement(title || 'Admin Announcement', message.trim());
+    res.json({ success: sent, message: 'Announcement broadcasted to all active users' });
+  } catch (err) {
+    console.error('Broadcast error:', err);
+    res.status(500).json({ error: 'Failed to send broadcast announcement' });
+  }
+});
+
+// 6. Live Active 8-Member Custom Rooms Directory
+router.get('/rooms', adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const rooms = customRoomManager.getRoomsDetailed();
+    res.json({ rooms });
+  } catch (err) {
+    console.error('Fetch rooms error:', err);
+    res.status(500).json({ error: 'Failed to fetch rooms' });
+  }
+});
+
+// 7. Force Terminate/Close Active Room
+router.post('/rooms/close', adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { roomId, reason } = req.body;
+    if (!roomId) {
+      return res.status(400).json({ error: 'roomId is required' });
+    }
+
+    const terminated = adminTerminateRoom(roomId, reason || 'Room terminated by Administrator');
+    res.json({ success: terminated, message: `Room ${roomId} closed successfully` });
+  } catch (err) {
+    console.error('Terminate room error:', err);
+    res.status(500).json({ error: 'Failed to terminate room' });
+  }
+});
+
+// 8. Live Active Connected Sockets
+router.get('/active-sockets', adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const activeSockets = getActiveSocketsList();
+    res.json({ activeSockets });
+  } catch (err) {
+    console.error('Active sockets error:', err);
+    res.status(500).json({ error: 'Failed to fetch active sockets' });
+  }
+});
+
+// 9. Force Kick Connected User Socket
+router.post('/users/kick', adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { socketId, reason } = req.body;
+    if (!socketId) {
+      return res.status(400).json({ error: 'socketId is required' });
+    }
+
+    const kicked = adminKickSocket(socketId, reason || 'Kicked by administrator');
+    res.json({ success: kicked, message: kicked ? 'User kicked from server' : 'Socket not found' });
+  } catch (err) {
+    console.error('Kick user error:', err);
+    res.status(500).json({ error: 'Failed to kick user' });
   }
 });
 

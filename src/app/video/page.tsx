@@ -22,7 +22,8 @@ import {
   Radio,
   Sparkles,
   RotateCw,
-  Users
+  Users,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getSocket } from '@/lib/socket';
@@ -57,6 +58,7 @@ function VideoChatContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAvatarMode, setIsAvatarMode] = useState(false);
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
+  const [systemAnnouncement, setSystemAnnouncement] = useState<{ title: string; message: string } | null>(null);
 
   // Chat & Modals
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -123,10 +125,10 @@ function VideoChatContent() {
       setCallState('permission_requested');
       setErrorMessage(null);
 
-      // Acquire camera and microphone
+      // Acquire camera and microphone with progressive step-downs
       const stream = await webrtcRef.current.getLocalMedia();
       setLocalStream(stream);
-      setIsAvatarMode(false);
+      setIsAvatarMode(webrtcRef.current.isAvatarMode);
 
       // Join socket queue
       const socket = getSocket(user?.id, user?.displayName);
@@ -145,22 +147,34 @@ function VideoChatContent() {
 
       setCallState('searching');
     } catch (err: unknown) {
-      console.error('Camera/Mic permission failed:', err);
-      setCallState('permission_denied');
-
-      const isHttpMobile = typeof window !== 'undefined' && 
-        window.location.protocol === 'http:' && 
-        window.location.hostname !== 'localhost' && 
-        window.location.hostname !== '127.0.0.1';
-
-      if (isHttpMobile) {
-        setErrorMessage(
-          'Mobile browsers restrict physical webcam access over local HTTP (http://192.168.x.x). Tap "Continue in Avatar Mode" to connect and voice chat immediately!'
+      console.warn('Physical camera/mic fallback triggered:', err);
+      try {
+        // Seamlessly continue in Live Avatar Mode so call never fails
+        const avatarStream = await webrtcRef.current.getAvatarMedia(
+          user?.displayName || 'TIMEPASS User',
+          user?.avatarUrl
         );
-      } else {
-        setErrorMessage(
-          'Camera and microphone access was denied or not detected. Please enable permissions in your browser address bar or continue instantly in Avatar Mode.'
-        );
+        setLocalStream(avatarStream);
+        setIsAvatarMode(true);
+
+        const socket = getSocket(user?.id, user?.displayName);
+        socket.emit('join-queue', {
+          mode: 'video',
+          interests,
+          languages: [language],
+          country,
+          gender: user?.profile?.gender,
+          region: user?.profile?.region,
+          userId: user?.id,
+          displayName: user?.displayName,
+          avatarUrl: user?.avatarUrl,
+          previousPartnerId: partnerIdRef.current || undefined,
+        });
+
+        setCallState('searching');
+      } catch (avatarErr) {
+        setCallState('permission_denied');
+        setErrorMessage('Unable to initialize media. Please refresh the page or tap below to retry.');
       }
     }
   }, [user, interests, language, country]);
@@ -364,6 +378,19 @@ function VideoChatContent() {
       });
     });
 
+    // 10. Admin Disconnect / Kick
+    socket.on('admin-kick', (data: { reason?: string }) => {
+      alert(data.reason || 'You have been disconnected by administrator.');
+      router.push('/');
+    });
+
+    // 11. Live System Announcement
+    socket.on('system-announcement', (data: { title: string; message: string }) => {
+      setSystemAnnouncement(data);
+      soundManager.playNotification();
+      setTimeout(() => setSystemAnnouncement(null), 8000);
+    });
+
     return () => {
       socket.off('match-found');
       socket.off('signal-offer');
@@ -375,6 +402,8 @@ function VideoChatContent() {
       socket.off('message-sent');
       socket.off('partner-typing');
       socket.off('trigger-requeue');
+      socket.off('admin-kick');
+      socket.off('system-announcement');
     };
   }, [isChatOpen, interests, language, country, user]);
 
@@ -535,6 +564,26 @@ function VideoChatContent() {
           </div>
         )}
       </div>
+
+      {/* Live System Announcement Banner */}
+      {systemAnnouncement && (
+        <div className="absolute top-14 inset-x-3 sm:inset-x-8 z-40 p-3 rounded-2xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 text-white shadow-2xl shadow-pink-500/30 flex items-center justify-between animate-bounce">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">📢</span>
+            <div>
+              <p className="text-xs font-black">{systemAnnouncement.title}</p>
+              <p className="text-[11px] opacity-90">{systemAnnouncement.message}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSystemAnnouncement(null)}
+            className="p-1 rounded-lg hover:bg-white/20 text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Main Calling Stage */}
       <div className="flex-1 relative flex overflow-hidden">

@@ -100,6 +100,42 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     youtubeId: '284Ov7ysmfA',
     themeColor: '#a855f7',
     thumbnail: 'https://img.youtube.com/vi/284Ov7ysmfA/mqdefault.jpg'
+  },
+  {
+    id: 'tere_vaaste',
+    title: 'Tere Vaaste Falak Se Main Chand Launga',
+    movie: 'Zara Hatke Zara Bachke',
+    singer: 'Varun Jain, Sachin-Jigar & Shadab Faridi',
+    youtubeId: 'AGXWf5aVl1E',
+    themeColor: '#06b6d4',
+    thumbnail: 'https://img.youtube.com/vi/AGXWf5aVl1E/mqdefault.jpg'
+  },
+  {
+    id: 'dil_diyan_gallan',
+    title: 'Dil Diyan Gallan',
+    movie: 'Tiger Zinda Hai',
+    singer: 'Atif Aslam & Vishal-Shekhar',
+    youtubeId: 'SAcpESN_Fk4',
+    themeColor: '#ec4899',
+    thumbnail: 'https://img.youtube.com/vi/SAcpESN_Fk4/mqdefault.jpg'
+  },
+  {
+    id: 'shayad',
+    title: 'Shayad Kabhi Na Keh Sakoon',
+    movie: 'Love Aaj Kal',
+    singer: 'Arijit Singh & Pritam',
+    youtubeId: 'YxWka60WuZg',
+    themeColor: '#8b5cf6',
+    thumbnail: 'https://img.youtube.com/vi/YxWka60WuZg/mqdefault.jpg'
+  },
+  {
+    id: 'pal_pal_dil_ke_paas',
+    title: 'Pal Pal Dil Ke Paas',
+    movie: 'Title Track',
+    singer: 'Arijit Singh & Parampara Tandon',
+    youtubeId: 'w_HQXl7x210',
+    themeColor: '#f59e0b',
+    thumbnail: 'https://img.youtube.com/vi/w_HQXl7x210/mqdefault.jpg'
   }
 ];
 
@@ -170,6 +206,56 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
   }, []);
+
+  // 1. Continuous Auto-Progression: Listen for YouTube IFrame State Changes (0 = ENDED) & Errors
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            return;
+          }
+        }
+
+        if (data && typeof data === 'object') {
+          // YouTube API onStateChange: 0 means ENDED
+          if (data.event === 'onStateChange' && data.info === 0) {
+            console.log('🎵 YouTube track ended, automatically advancing to next Bollywood hit');
+            nextTrack();
+          }
+
+          // YouTube error (e.g. video restricted in region, embed disabled, network error)
+          if (data.event === 'onError' || [2, 5, 100, 101, 150].includes(data.info)) {
+            console.warn('🎵 YouTube playback error or restricted, auto-skipping to next song');
+            nextTrack();
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isPlaying, nextTrack]);
+
+  // 2. Continuous Playback Duration Watchdog (4 minutes maximum per track if postMessage blocked)
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const fallbackTimer = setTimeout(() => {
+      console.log('🎵 Song duration watchdog reached, auto-progressing to next hit...');
+      nextTrack();
+    }, 240000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [isPlaying, currentTrackIndex, nextTrack]);
+
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const embedIframeUrl = `https://www.youtube-nocookie.com/embed/${currentTrack.youtubeId}?autoplay=1&enablejsapi=1&rel=0&playsinline=1&controls=1&modestbranding=1&origin=${encodeURIComponent(originUrl)}`;
 
   return (
     <MusicContext.Provider
@@ -279,7 +365,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                 <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-inner group">
                   <iframe
                     key={`video_${currentTrack.id}`}
-                    src={`https://www.youtube-nocookie.com/embed/${currentTrack.youtubeId}?autoplay=1&enablejsapi=1&rel=0&playsinline=1`}
+                    src={embedIframeUrl}
                     title={`${currentTrack.title} - ${currentTrack.singer}`}
                     className="w-full h-full border-0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -294,7 +380,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                   <div className="absolute w-1 h-1 opacity-0 overflow-hidden pointer-events-none">
                     <iframe
                       key={`audio_${currentTrack.id}`}
-                      src={`https://www.youtube-nocookie.com/embed/${currentTrack.youtubeId}?autoplay=1&enablejsapi=1&rel=0&playsinline=1`}
+                      src={embedIframeUrl}
                       title="Audio Stream"
                       className="w-1 h-1"
                       allow="autoplay"
@@ -379,7 +465,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
               <div className="absolute w-1 h-1 opacity-0 overflow-hidden pointer-events-none">
                 <iframe
                   key={`min_${currentTrack.id}`}
-                  src={`https://www.youtube-nocookie.com/embed/${currentTrack.youtubeId}?autoplay=1&enablejsapi=1&rel=0&playsinline=1`}
+                  src={embedIframeUrl}
                   title="Audio Stream"
                   className="w-1 h-1"
                   allow="autoplay"

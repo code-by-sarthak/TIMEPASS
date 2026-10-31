@@ -93,6 +93,7 @@ export default function CustomRoomViewPage() {
   const [isMusicPickerOpen, setIsMusicPickerOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [floatingEmojis, setFloatingEmojis] = useState<Array<{ id: number; emoji: string; left: number }>>([]);
+  const [systemAnnouncement, setSystemAnnouncement] = useState<{ title: string; message: string } | null>(null);
 
   // Local media states
   const [isMuted, setIsMuted] = useState(false);
@@ -396,6 +397,25 @@ export default function CustomRoomViewPage() {
       router.push('/rooms');
     });
 
+    // 11. Admin Terminated Room
+    socket.on('custom-room-terminated', (data: { roomId: string; reason?: string }) => {
+      alert(data.reason || 'This room was closed by the administrator.');
+      router.push('/rooms');
+    });
+
+    // 12. Admin Kick User
+    socket.on('admin-kick', (data: { reason?: string }) => {
+      alert(data.reason || 'You have been disconnected by the administrator.');
+      router.push('/');
+    });
+
+    // 13. System Announcement
+    socket.on('system-announcement', (data: { title: string; message: string }) => {
+      setSystemAnnouncement(data);
+      soundManager.playNotification();
+      setTimeout(() => setSystemAnnouncement(null), 8000);
+    });
+
     return () => {
       socket.emit('leave-custom-room');
       socket.off('custom-room-joined');
@@ -409,6 +429,9 @@ export default function CustomRoomViewPage() {
       socket.off('custom-room-track-changed');
       socket.off('custom-room-member-media-changed');
       socket.off('custom-room-error');
+      socket.off('custom-room-terminated');
+      socket.off('admin-kick');
+      socket.off('system-announcement');
 
       // Close all peer connections
       peersRef.current.forEach((pc) => pc.close());
@@ -566,6 +589,26 @@ export default function CustomRoomViewPage() {
         </div>
       </header>
 
+      {/* Live System Announcement Banner */}
+      {systemAnnouncement && (
+        <div className="z-30 mx-3 mt-2 p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 text-white shadow-xl shadow-pink-500/25 flex items-center justify-between animate-pulse shrink-0">
+          <div className="flex items-center gap-2.5">
+            <span className="text-base sm:text-lg">📢</span>
+            <div>
+              <p className="text-xs font-black">{systemAnnouncement.title}</p>
+              <p className="text-[11px] opacity-90">{systemAnnouncement.message}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSystemAnnouncement(null)}
+            className="p-1 rounded-lg hover:bg-white/20 text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Main Room Arena: 8-Member Grid + Side Chat */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
         {/* 8-Member Grid Area (Adaptive Viewport Fit for Mobile & Desktop) */}
@@ -595,6 +638,20 @@ export default function CustomRoomViewPage() {
                   key={member.socketId || idx}
                   className="relative w-full h-full min-h-0 rounded-xl sm:rounded-3xl glass-panel border border-white/10 overflow-hidden flex flex-col items-center justify-center p-1 sm:p-3 shadow-lg group hover:border-pink-500/40 transition-all"
                 >
+                  {/* Dedicated Remote Audio Channel (Always plays remote voice cleanly even if video is off or lagging) */}
+                  {!isSelf && remoteStream && (
+                    <audio
+                      autoPlay
+                      playsInline
+                      ref={(el) => {
+                        if (el && el.srcObject !== remoteStream) {
+                          el.srcObject = remoteStream;
+                          el.play().catch(() => {});
+                        }
+                      }}
+                    />
+                  )}
+
                   {/* Real Live Video Stream (Local or Remote) */}
                   {hasVideo ? (
                     <video
@@ -614,16 +671,6 @@ export default function CustomRoomViewPage() {
                   ) : (
                     /* Avatar with voice pulsing ring */
                     <div className="relative flex flex-col items-center justify-center text-center z-10 scale-90 sm:scale-100">
-                      {/* Hidden audio element for remote member when video is off so voice still plays */}
-                      {!isSelf && remoteStream && (
-                        <audio
-                          autoPlay
-                          playsInline
-                          ref={(el) => {
-                            if (el && el.srcObject !== remoteStream) el.srcObject = remoteStream;
-                          }}
-                        />
-                      )}
                       <div className="relative w-10 h-10 xs:w-14 xs:h-14 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm xs:text-lg sm:text-2xl shadow-xl shadow-pink-500/25 border-2 border-white/20">
                         {member.avatarUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
