@@ -3,6 +3,7 @@ import './globals.css';
 import { ThemeProvider } from '@/lib/theme-context';
 import { AuthProvider } from '@/lib/auth-context';
 import { MusicProvider } from '@/lib/music-context';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 export const metadata: Metadata = {
   title: 'TIMEPASS — Meet Someone New. Anytime.',
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
   themeColor: '#090a14',
 };
 
@@ -32,6 +35,7 @@ export default function RootLayout({
           <AuthProvider>
             <MusicProvider>
               {children}
+              <MobileBottomNav />
             </MusicProvider>
           </AuthProvider>
         </ThemeProvider>

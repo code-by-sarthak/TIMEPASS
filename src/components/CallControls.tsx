@@ -50,11 +50,12 @@ export default function CallControls({
   onOpenSettings,
 }: CallControlsProps) {
   return (
-    <div className="flex items-center justify-center gap-1.5 sm:gap-3 p-2 sm:p-3 glass-toolbar rounded-2xl max-w-full mx-auto transition-all shadow-2xl">
+    <div className="flex items-center justify-center gap-1 xs:gap-1.5 sm:gap-2.5 p-1.5 sm:p-2.5 glass-toolbar rounded-2xl max-w-[calc(100vw-16px)] mx-auto transition-all shadow-2xl">
       {/* Microphone Toggle */}
       <button
+        type="button"
         onClick={onToggleMic}
-        className={`p-2.5 sm:p-3 rounded-xl transition-all ${
+        className={`p-2 sm:p-2.5 rounded-xl transition-all ${
           isMuted
             ? 'bg-red-500/20 text-red-400 border border-red-500/30'
             : 'bg-white/5 hover:bg-white/10 text-white border border-white/5'
@@ -66,8 +67,9 @@ export default function CallControls({
 
       {/* Camera Toggle */}
       <button
+        type="button"
         onClick={onToggleVideo}
-        className={`p-2.5 sm:p-3 rounded-xl transition-all ${
+        className={`p-2 sm:p-2.5 rounded-xl transition-all ${
           isVideoOff
             ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
             : 'bg-white/5 hover:bg-white/10 text-white border border-white/5'
@@ -79,8 +81,9 @@ export default function CallControls({
 
       {/* Switch Camera */}
       <button
+        type="button"
         onClick={onSwitchCamera}
-        className="p-2.5 sm:p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all"
+        className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all"
         title="Switch Camera (Front/Back)"
       >
         <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -88,27 +91,29 @@ export default function CallControls({
 
       {/* NEXT BUTTON - Primary Action */}
       <button
+        type="button"
         onClick={onNext}
-        className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl gradient-button text-white font-black text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-brand-500/30 hover:scale-105 active:scale-95 transition-all"
+        className="px-3.5 sm:px-6 py-2 sm:py-2.5 rounded-xl gradient-button text-white font-black text-xs sm:text-sm flex items-center gap-1 sm:gap-2 shadow-lg shadow-pink-500/30 hover:scale-105 active:scale-95 transition-all"
         title="Skip to Next Person (or press Esc)"
       >
         <span>NEXT</span>
-        <SkipForward className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+        <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
       </button>
 
       {/* Chat Drawer Toggle */}
       <button
+        type="button"
         onClick={onToggleChat}
-        className={`relative p-2.5 sm:p-3 rounded-xl transition-all ${
+        className={`relative p-2 sm:p-2.5 rounded-xl transition-all ${
           isChatOpen
-            ? 'bg-brand-500 text-white shadow'
+            ? 'bg-pink-500 text-white shadow'
             : 'bg-white/5 hover:bg-white/10 text-white border border-white/5'
         }`}
         title="Toggle Chat"
       >
         <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
         {unreadCount > 0 && !isChatOpen && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-pink-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
             {unreadCount}
           </span>
         )}
@@ -116,8 +121,9 @@ export default function CallControls({
 
       {/* Fullscreen Toggle */}
       <button
+        type="button"
         onClick={onToggleFullscreen}
-        className="p-2.5 sm:p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all hidden sm:block"
+        className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all hidden sm:block"
         title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
       >
         {isFullscreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />}
@@ -126,8 +132,9 @@ export default function CallControls({
       {/* Settings Modal Toggle */}
       {onOpenSettings && (
         <button
+          type="button"
           onClick={onOpenSettings}
-          className="p-2.5 sm:p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all hidden sm:block"
+          className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all hidden sm:block"
           title="Audio/Video Settings"
         >
           <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -136,8 +143,9 @@ export default function CallControls({
 
       {/* Report & Block */}
       <button
+        type="button"
         onClick={onOpenReport}
-        className="p-2.5 sm:p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+        className="p-2 sm:p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
         title="Report or Block User"
       >
         <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -145,8 +153,9 @@ export default function CallControls({
 
       {/* END CALL BUTTON */}
       <button
+        type="button"
         onClick={onEndCall}
-        className="p-2.5 sm:p-3 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all shadow-md shadow-red-600/30"
+        className="p-2 sm:p-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all shadow-md shadow-red-600/30"
         title="Leave and End Call"
       >
         <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />

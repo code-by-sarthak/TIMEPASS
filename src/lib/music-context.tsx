@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { 
   Play, 
   Pause, 
@@ -124,6 +125,7 @@ interface MusicContextType {
 const MusicContext = createContext<MusicContextType | null>(null);
 
 export function MusicProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -132,6 +134,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
 
   const playedHistoryRef = useRef<number[]>([0]);
   const currentTrack = ORIGINAL_BOLLYWOOD_HITS[currentTrackIndex];
+  const isCallingPage = pathname === '/video' || pathname?.startsWith('/rooms/');
 
   // Pick Next Track without repeating recent songs
   const nextTrack = useCallback(() => {
@@ -193,9 +196,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
       {isPlaying && (
         <div
           className={`fixed z-50 transition-all duration-300 ease-in-out shadow-2xl ${
-            isFloatingMinimized
-              ? 'bottom-3 sm:bottom-4 right-3 sm:right-4 w-[280px] sm:w-72 max-w-[calc(100vw-24px)] rounded-2xl glass-panel border border-pink-500/40 p-2.5 flex items-center gap-3 backdrop-blur-xl'
-              : 'bottom-3 sm:bottom-4 right-3 sm:right-4 w-[330px] xs:w-[350px] sm:w-[380px] max-w-[calc(100vw-24px)] rounded-3xl glass-panel border-2 border-pink-500/50 p-3 sm:p-3.5 bg-black/95 backdrop-blur-2xl shadow-pink-500/20'
+            isCallingPage
+              ? isFloatingMinimized
+                ? 'bottom-20 sm:bottom-24 right-2 sm:right-4 w-[280px] sm:w-72 max-w-[calc(100vw-16px)] rounded-2xl glass-panel border border-pink-500/40 p-2.5 flex items-center gap-3 backdrop-blur-xl'
+                : 'bottom-20 sm:bottom-24 right-2 sm:right-4 w-[300px] xs:w-[340px] sm:w-[380px] max-w-[calc(100vw-16px)] rounded-3xl glass-panel border-2 border-pink-500/50 p-2.5 sm:p-3.5 bg-black/95 backdrop-blur-2xl shadow-pink-500/20'
+              : isFloatingMinimized
+                ? 'bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 right-2 sm:right-4 w-[280px] sm:w-72 max-w-[calc(100vw-16px)] rounded-2xl glass-panel border border-pink-500/40 p-2.5 flex items-center gap-3 backdrop-blur-xl'
+                : 'bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 right-2 sm:right-4 w-[300px] xs:w-[340px] sm:w-[380px] max-w-[calc(100vw-16px)] rounded-3xl glass-panel border-2 border-pink-500/50 p-2.5 sm:p-3.5 bg-black/95 backdrop-blur-2xl shadow-pink-500/20'
           }`}
           style={{
             boxShadow: `0 20px 50px -10px ${currentTrack.themeColor}33, 0 0 30px 2px ${currentTrack.themeColor}22`

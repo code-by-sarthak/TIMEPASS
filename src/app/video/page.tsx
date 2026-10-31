@@ -651,8 +651,8 @@ function VideoChatContent() {
                 />
               </div>
 
-              {/* Local User Preview (Picture-in-Picture / Floating) */}
-              <div className="absolute bottom-20 sm:bottom-24 right-3 sm:right-6 w-28 xs:w-36 sm:w-48 md:w-56 aspect-video rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 z-20 transition-all hover:scale-105 group/pip">
+              {/* Local User Preview (Picture-in-Picture / Mobile Native Top-Right Floating) */}
+              <div className="absolute top-14 sm:top-auto sm:bottom-24 right-2.5 sm:right-6 w-24 xs:w-28 sm:w-48 md:w-56 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 z-20 transition-all hover:scale-105 group/pip backdrop-blur-md">
                 <VideoPlayer
                   stream={localStream}
                   isLocal={true}
@@ -699,7 +699,7 @@ function VideoChatContent() {
       </div>
 
       {/* Floating Call Control Toolbar */}
-      <div className="absolute bottom-3 sm:bottom-5 left-0 right-0 z-30 pointer-events-auto px-2 sm:px-4 flex justify-center">
+      <div className="absolute bottom-3 sm:bottom-5 left-0 right-0 z-30 pointer-events-auto px-2 sm:px-4 flex justify-center pb-[env(safe-area-inset-bottom,0px)]">
         <CallControls
           isMuted={isMuted}
           isVideoOff={isVideoOff}

@@ -567,15 +567,15 @@ export default function CustomRoomViewPage() {
       </header>
 
       {/* Main Room Arena: 8-Member Grid + Side Chat */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* 8-Member Grid Area */}
-        <div className="flex-1 p-2 sm:p-4 overflow-y-auto flex flex-col justify-between">
+      <div className="flex-1 flex overflow-hidden relative min-h-0">
+        {/* 8-Member Grid Area (Adaptive Viewport Fit for Mobile & Desktop) */}
+        <div className="flex-1 p-2 sm:p-4 flex flex-col justify-between min-h-0 overflow-hidden">
           {/* Synchronized Room DJ Banner */}
-          <div className="mb-2 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-500/20 flex items-center justify-between text-xs shrink-0">
+          <div className="mb-1.5 sm:mb-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-500/20 flex items-center justify-between text-xs shrink-0">
             <div className="flex items-center gap-2 truncate min-w-0">
               <span className="w-2 h-2 rounded-full bg-pink-400 animate-pulse shrink-0" />
               <span className="text-[10px] sm:text-xs text-pink-300 font-bold truncate">
-                🎵 Room Audio & Video Live for all 8 members · Tap Room DJ to sync tracks!
+                🎵 Room Audio &amp; Video Live for all 8 members · Tap Room DJ to sync tracks!
               </span>
             </div>
             <span className="text-[10px] text-gray-400 font-medium hidden sm:inline">
@@ -583,8 +583,8 @@ export default function CustomRoomViewPage() {
             </span>
           </div>
 
-          {/* Grid of up to 8 Member Tiles */}
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 items-center justify-center auto-rows-fr">
+          {/* Grid of up to 8 Member Tiles (Fits any screen height without scroll) */}
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 grid-rows-4 md:grid-rows-2 gap-1.5 sm:gap-3 items-stretch justify-center min-h-0 overflow-hidden py-0.5">
             {members.map((member, idx) => {
               const isSelf = member.userId === user?.id || member.socketId === getSocket().id;
               const remoteStream = remoteStreams[member.socketId];
@@ -593,7 +593,7 @@ export default function CustomRoomViewPage() {
               return (
                 <div
                   key={member.socketId || idx}
-                  className="relative w-full h-full min-h-[120px] xs:min-h-[140px] sm:min-h-[170px] rounded-2xl sm:rounded-3xl glass-panel border border-white/10 overflow-hidden flex flex-col items-center justify-center p-3 shadow-lg group hover:border-pink-500/40 transition-all"
+                  className="relative w-full h-full min-h-0 rounded-xl sm:rounded-3xl glass-panel border border-white/10 overflow-hidden flex flex-col items-center justify-center p-1 sm:p-3 shadow-lg group hover:border-pink-500/40 transition-all"
                 >
                   {/* Real Live Video Stream (Local or Remote) */}
                   {hasVideo ? (
@@ -613,7 +613,7 @@ export default function CustomRoomViewPage() {
                     />
                   ) : (
                     /* Avatar with voice pulsing ring */
-                    <div className="relative flex flex-col items-center justify-center text-center z-10">
+                    <div className="relative flex flex-col items-center justify-center text-center z-10 scale-90 sm:scale-100">
                       {/* Hidden audio element for remote member when video is off so voice still plays */}
                       {!isSelf && remoteStream && (
                         <audio
@@ -624,7 +624,7 @@ export default function CustomRoomViewPage() {
                           }}
                         />
                       )}
-                      <div className="relative w-12 h-12 xs:w-16 xs:h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg xs:text-2xl shadow-xl shadow-pink-500/25 border-2 border-white/20">
+                      <div className="relative w-10 h-10 xs:w-14 xs:h-14 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm xs:text-lg sm:text-2xl shadow-xl shadow-pink-500/25 border-2 border-white/20">
                         {member.avatarUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -643,32 +643,32 @@ export default function CustomRoomViewPage() {
                   )}
 
                   {/* Top-Right Mic Indicator */}
-                  <div className="absolute top-2.5 right-2.5 z-20">
+                  <div className="absolute top-1.5 sm:top-2.5 right-1.5 sm:right-2.5 z-20">
                     <span
-                      className={`p-1.5 rounded-lg flex items-center justify-center ${
+                      className={`p-1 sm:p-1.5 rounded-lg flex items-center justify-center ${
                         member.isMuted
                           ? 'bg-red-500/80 text-white'
                           : 'bg-black/60 text-emerald-400 border border-emerald-500/30'
                       }`}
                     >
-                      {member.isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                      {member.isMuted ? <MicOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <Mic className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                     </span>
                   </div>
 
                   {/* Bottom Member Identity Banner */}
-                  <div className="absolute bottom-2 inset-x-2 z-20 px-2 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-between text-[11px] truncate">
-                    <div className="flex items-center gap-1.5 truncate">
+                  <div className="absolute bottom-1 sm:bottom-2 inset-x-1 sm:inset-x-2 z-20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg sm:rounded-xl bg-black/70 backdrop-blur-md border border-white/10 flex items-center justify-between text-[9px] sm:text-[11px] truncate">
+                    <div className="flex items-center gap-1 sm:gap-1.5 truncate">
                       {member.isHost && (
                         <span title="Room Host">
-                          <Crown className="w-3 h-3 text-amber-400 shrink-0" />
+                          <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-400 shrink-0" />
                         </span>
                       )}
-                      <span className="font-bold text-white truncate max-w-[90px] xs:max-w-[110px]">
+                      <span className="font-bold text-white truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[120px]">
                         {member.displayName} {isSelf && '(You)'}
                       </span>
                     </div>
 
-                    <span className="text-[9px] text-gray-400 shrink-0">
+                    <span className="text-[8px] sm:text-[9px] text-gray-400 shrink-0 hidden xs:inline">
                       📍 {member.region || 'India'}
                     </span>
                   </div>
@@ -680,27 +680,27 @@ export default function CustomRoomViewPage() {
             {Array.from({ length: Math.max(0, 8 - members.length) }).map((_, idx) => (
               <div
                 key={`empty_${idx}`}
-                className="w-full h-full min-h-[120px] xs:min-h-[140px] sm:min-h-[170px] rounded-2xl sm:rounded-3xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center p-3 text-center text-gray-500 hover:border-pink-500/20 transition-colors"
+                className="w-full h-full min-h-0 rounded-xl sm:rounded-3xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center p-1 sm:p-3 text-center text-gray-500 hover:border-pink-500/20 transition-colors"
               >
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-600 mb-1">
-                  <Users className="w-4 h-4" />
+                <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-600 mb-0.5 sm:mb-1">
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-[10px] font-bold text-gray-400">Slot {members.length + idx + 1}/8</span>
-                <span className="text-[9px] text-gray-400">Waiting for member...</span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">Slot {members.length + idx + 1}/8</span>
+                <span className="text-[8px] sm:text-[9px] text-gray-500 hidden xs:inline">Waiting for member...</span>
               </div>
             ))}
           </div>
 
           {/* Quick Floating Reactions Bar for the Room */}
-          <div className="mt-2 py-1.5 px-3 rounded-2xl glass-toolbar border border-white/10 flex items-center justify-between shrink-0">
+          <div className="mt-1 sm:mt-2 py-1 sm:py-1.5 px-2 sm:px-3 rounded-2xl glass-toolbar border border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mr-1 hidden sm:inline">React:</span>
+              <span className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-wider mr-1 hidden sm:inline">React:</span>
               {COMMON_REACTIONS.map((r) => (
                 <button
                   key={r.label}
                   type="button"
                   onClick={() => handleSendReaction(r.emoji)}
-                  className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-sm hover:scale-125 active:scale-95 transition-all"
+                  className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-white/5 hover:bg-white/15 text-xs sm:text-sm hover:scale-125 active:scale-95 transition-all"
                   title={r.label}
                 >
                   {r.emoji}
@@ -711,9 +711,9 @@ export default function CustomRoomViewPage() {
             <button
               type="button"
               onClick={() => setIsChatOpen(!isChatOpen)}
-              className="px-3 py-1 rounded-xl gradient-button text-white text-xs font-bold flex items-center gap-1 shadow-md shadow-pink-500/20 md:hidden"
+              className="px-2.5 sm:px-3 py-1 rounded-xl gradient-button text-white text-[11px] sm:text-xs font-bold flex items-center gap-1 shadow-md shadow-pink-500/20 md:hidden"
             >
-              <MessageSquare className="w-3.5 h-3.5" />
+              <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>Chat ({messages.length})</span>
             </button>
           </div>
@@ -794,12 +794,12 @@ export default function CustomRoomViewPage() {
       </div>
 
       {/* Floating Bottom Room Toolbar */}
-      <footer className="p-2 sm:p-3 border-t border-white/10 glass-panel flex items-center justify-center gap-2 sm:gap-3 z-30 shrink-0">
+      <footer className="p-1.5 xs:p-2 sm:p-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 glass-panel flex items-center justify-center gap-1.5 xs:gap-2 sm:gap-3 z-30 shrink-0">
         {/* Mic Toggle */}
         <button
           type="button"
           onClick={handleToggleMic}
-          className={`p-2.5 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+          className={`p-2 xs:p-2.5 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
             isMuted
               ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
               : 'bg-white/10 hover:bg-white/15 text-white'
@@ -814,7 +814,7 @@ export default function CustomRoomViewPage() {
         <button
           type="button"
           onClick={handleToggleVideo}
-          className={`p-2.5 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+          className={`p-2 xs:p-2.5 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
             isVideoOff
               ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
               : 'bg-white/10 hover:bg-white/15 text-white'
@@ -829,7 +829,7 @@ export default function CustomRoomViewPage() {
         <button
           type="button"
           onClick={() => setIsMusicPickerOpen(true)}
-          className="p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-pink-500/20 text-pink-300 font-bold text-xs flex items-center gap-1.5 border border-pink-500/30 hover:bg-pink-500/30 transition-all hover:scale-105"
+          className="p-2 xs:p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-pink-500/20 text-pink-300 font-bold text-xs flex items-center gap-1.5 border border-pink-500/30 hover:bg-pink-500/30 transition-all hover:scale-105"
         >
           <Music2 className="w-4 h-4 text-pink-400" />
           <span className="hidden sm:inline">Sync Bollywood DJ</span>
@@ -839,7 +839,7 @@ export default function CustomRoomViewPage() {
         <button
           type="button"
           onClick={handleCopyLink}
-          className="p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 font-bold text-xs flex items-center gap-1.5 transition-all"
+          className="p-2 xs:p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 font-bold text-xs flex items-center gap-1.5 transition-all"
         >
           {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
           <span className="hidden sm:inline">{copiedLink ? 'Link Copied!' : 'Share Room'}</span>
@@ -849,10 +849,10 @@ export default function CustomRoomViewPage() {
         <button
           type="button"
           onClick={() => router.push('/rooms')}
-          className="p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition-all active:scale-95"
+          className="p-2 xs:p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition-all active:scale-95"
         >
           <PhoneOff className="w-4 h-4" />
-          <span>Leave Room</span>
+          <span className="hidden xs:inline">Leave Room</span>
         </button>
       </footer>
 
