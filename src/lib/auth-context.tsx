@@ -102,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw new Error(resData.error || 'Failed to synchronize Firebase session');
     } catch (err: unknown) {
-      alert((err as Error).message);
-      return false;
+      console.warn('syncFirebaseUser error:', err);
+      throw err;
     }
   };
 
@@ -130,8 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw new Error(data.error || 'Gmail sign-in failed');
     } catch (err: unknown) {
-      alert((err as Error).message);
-      return false;
+      console.warn('loginWithGmail error:', err);
+      throw err;
     }
   };
 
@@ -150,15 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: unknown) {
       const error = err as Error;
       console.warn('Firebase popup failed or domain restricted:', error.message);
-      if (error.message?.includes('popup-closed-by-user')) {
-        return false;
-      }
-      // Automatic fallback: Prompt for Gmail ID so user is never blocked
-      const promptEmail = prompt('Google popup was restricted on this origin. Enter your Gmail address to sign in instantly:');
-      if (promptEmail && promptEmail.includes('@')) {
-        return await loginWithGmail(promptEmail, undefined, extraProfile);
-      }
-      return false;
+      throw error;
     }
   };
 
@@ -176,8 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw new Error(data.error || 'Login failed');
     } catch (err: unknown) {
-      alert((err as Error).message);
-      return false;
+      console.warn('login error:', err);
+      throw err;
     }
   };
 
@@ -195,8 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw new Error(resData.error || 'Registration failed');
     } catch (err: unknown) {
-      alert((err as Error).message);
-      return false;
+      console.warn('register error:', err);
+      throw err;
     }
   };
 

@@ -99,10 +99,19 @@ export default function AuthModal({
   const handleGoogleSignIn = async () => {
     setError(null);
     setLoading(true);
-    const success = await loginWithGoogle({ gender, region });
-    setLoading(false);
-    if (success) {
-      handleSuccessfulAuth();
+    try {
+      const success = await loginWithGoogle({ gender, region });
+      if (success) {
+        handleSuccessfulAuth();
+      }
+    } catch (err: unknown) {
+      console.warn('Google popup error, switching to direct Gmail input:', err);
+      setError('Google popup was restricted by this browser. Enter your Gmail address below to sign in instantly with 1-click!');
+      if (!gmailInput) {
+        setGmailInput('');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,18 +129,23 @@ export default function AuthModal({
 
     setError(null);
     setLoading(true);
-    const success = await loginWithGmail(
-      gmailInput.trim(), 
-      displayName.trim() || undefined, 
-      { gender, region }
-    );
-    setLoading(false);
-    if (success) {
-      handleSuccessfulAuth();
+    try {
+      const success = await loginWithGmail(
+        gmailInput.trim(), 
+        displayName.trim() || undefined, 
+        { gender, region }
+      );
+      if (success) {
+        handleSuccessfulAuth();
+      }
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Gmail sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 3. Email & Password Login / Register
+  // 3. Email & Password Login / Auto-Register
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ageConfirmed) {
@@ -150,23 +164,27 @@ export default function AuthModal({
     setError(null);
     setLoading(true);
 
-    if (isRegisterMode) {
-      const regSuccess = await register({
-        email: emailInput.trim(),
-        password: passwordInput,
-        displayName: displayName.trim() || emailInput.split('@')[0],
-        country: region.includes('(') ? region.split('(')[1].replace(')', '') : 'India'
-      });
-      setLoading(false);
-      if (regSuccess) {
-        handleSuccessfulAuth();
+    try {
+      if (isRegisterMode) {
+        const regSuccess = await register({
+          email: emailInput.trim(),
+          password: passwordInput,
+          displayName: displayName.trim() || emailInput.split('@')[0],
+          country: region.includes('(') ? region.split('(')[1].replace(')', '') : 'India'
+        });
+        if (regSuccess) {
+          handleSuccessfulAuth();
+        }
+      } else {
+        const logSuccess = await login(emailInput.trim(), passwordInput);
+        if (logSuccess) {
+          handleSuccessfulAuth();
+        }
       }
-    } else {
-      const logSuccess = await login(emailInput.trim(), passwordInput);
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Authentication failed. Please check your credentials.');
+    } finally {
       setLoading(false);
-      if (logSuccess) {
-        handleSuccessfulAuth();
-      }
     }
   };
 

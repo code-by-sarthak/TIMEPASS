@@ -1,7 +1,18 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, VideoOff, Volume2, VolumeX, User as UserIcon, Sparkles } from 'lucide-react';
+import { 
+  Mic, 
+  MicOff, 
+  Video, 
+  VideoOff, 
+  Volume2, 
+  VolumeX, 
+  User as UserIcon, 
+  Sparkles,
+  Minimize2,
+  Maximize2
+} from 'lucide-react';
 
 interface VideoPlayerProps {
   stream: MediaStream | null;
@@ -15,6 +26,8 @@ interface VideoPlayerProps {
   country?: string;
   qualityBadge?: 'Excellent' | 'Good' | 'Reconnecting';
   callMode?: 'video' | 'audio';
+  isMinimized?: boolean;
+  onToggleMinimize?: () => void;
 }
 
 export default function VideoPlayer({
@@ -29,6 +42,8 @@ export default function VideoPlayer({
   country,
   qualityBadge,
   callMode = 'video',
+  isMinimized = false,
+  onToggleMinimize,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -86,6 +101,51 @@ export default function VideoPlayer({
   }, [isLocal, stream, isMuted]);
 
   const showVideo = !isVideoOff && stream && callMode !== 'audio';
+
+  // SINGLE SMALL STYLISH MINIMIZED PILL
+  if (isMinimized) {
+    return (
+      <div 
+        onClick={onToggleMinimize}
+        className="w-auto h-auto px-3 py-2 rounded-2xl glass-panel border border-pink-500/40 shadow-2xl flex items-center gap-2.5 cursor-pointer backdrop-blur-2xl hover:scale-105 transition-all select-none group"
+        title="Tap to expand video"
+      >
+        {!isLocal && (
+          <audio ref={audioRef} autoPlay playsInline muted={isMuted} />
+        )}
+        <video ref={videoRef} autoPlay playsInline muted={true} className="hidden" />
+
+        <div className="relative w-7 h-7 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt={displayName || 'User'} className="w-full h-full rounded-full object-cover" />
+          ) : (
+            <UserIcon className="w-4 h-4" />
+          )}
+          {!isMuted && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />}
+        </div>
+
+        <div className="min-w-0 pr-1">
+          <p className="text-[11px] font-black text-white truncate max-w-[80px] xs:max-w-[110px]">{displayName || 'You'}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${showVideo ? 'bg-pink-400' : 'bg-amber-400'}`} />
+            <span className="text-[8px] text-gray-400 uppercase font-semibold">{showVideo ? 'Cam' : 'Off'}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ml-1 ${!isMuted ? 'bg-emerald-400' : 'bg-red-400'}`} />
+            <span className="text-[8px] text-gray-400 uppercase font-semibold">{!isMuted ? 'Mic' : 'Muted'}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleMinimize?.(); }}
+          className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+          title="Expand"
+        >
+          <Maximize2 className="w-3.5 h-3.5 text-pink-400" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full bg-neutral-950 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 flex items-center justify-center shadow-2xl group select-none">
@@ -150,7 +210,7 @@ export default function VideoPlayer({
         </div>
       )}
 
-      {/* Top Details Header */}
+      {/* Top Details Header: Cleanly Aligned User Info & Upper Audio/Video Status Icons */}
       <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 right-2.5 sm:right-3 flex items-center justify-between z-10 pointer-events-none">
         <div className="flex items-center gap-1.5 sm:gap-2">
           {displayName && (
@@ -179,13 +239,48 @@ export default function VideoPlayer({
           )}
         </div>
 
-        {/* Live Video Indicator Badge */}
-        {showVideo && (
-          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-black text-emerald-400 flex items-center gap-1 backdrop-blur-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>LIVE</span>
+        {/* Right Upper Video & Audio Indicator Icons + Single Small Stylish Minimize Button */}
+        <div className="flex items-center gap-1.5 pointer-events-auto">
+          {/* Upper Video Status Icon */}
+          <span 
+            className={`p-1.5 rounded-xl backdrop-blur-md border text-[10px] font-bold shadow-lg transition-all flex items-center gap-1 ${
+              showVideo 
+                ? 'bg-pink-500/25 text-pink-300 border-pink-500/40 shadow-pink-500/20' 
+                : 'bg-amber-500/25 text-amber-300 border-amber-500/40'
+            }`}
+            title={showVideo ? 'Video Camera Active' : 'Video Camera Off'}
+          >
+            {showVideo ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
           </span>
-        )}
+
+          {/* Upper Audio Status Icon */}
+          <span 
+            className={`p-1.5 rounded-xl backdrop-blur-md border text-[10px] font-bold shadow-lg transition-all flex items-center gap-1 ${
+              !isMuted 
+                ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/40 shadow-emerald-500/20' 
+                : 'bg-red-500/25 text-red-300 border-red-500/40'
+            }`}
+            title={!isMuted ? 'Microphone Active' : 'Microphone Muted'}
+          >
+            {!isMuted ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+          </span>
+
+          {/* Single Small Stylish Minimize / Maximize Button */}
+          {onToggleMinimize && (
+            <button
+              type="button"
+              onClick={onToggleMinimize}
+              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white shadow-lg backdrop-blur-md transition-all active:scale-95 flex items-center justify-center group/min"
+              title={isMinimized ? 'Expand Video' : 'Minimize Video to Single Small Stylish Icon'}
+            >
+              {isMinimized ? (
+                <Maximize2 className="w-3.5 h-3.5 text-pink-400 group-hover/min:scale-110 transition-transform" />
+              ) : (
+                <Minimize2 className="w-3.5 h-3.5 text-gray-300 group-hover/min:text-white transition-colors" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Bottom Status Badges */}

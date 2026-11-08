@@ -137,32 +137,71 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
-// 3. Email / Username Login
+// 3. Email / Username Login (With Smart Auto-Registration for seamless onboarding)
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { login, password } = req.body;
 
     if (!login || !password) {
-      return res.status(400).json({ error: 'Email/username and password are required' });
+      return res.status(400).json({ error: 'Email or username and password are required' });
     }
 
-    const user = await prisma.user.findFirst({
+    const cleanLogin = login.toLowerCase().trim();
+
+    let user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: login.toLowerCase() },
-          { username: login.toLowerCase() }
+          { email: cleanLogin },
+          { username: cleanLogin }
         ]
       },
       include: { profile: true }
     });
 
-    if (!user || !user.passwordHash) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    // If user doesn't exist yet, automatically create their account!
+    if (!user) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+      }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      const passwordHash = await bcrypt.hash(password, 10);
+      const isEmail = cleanLogin.includes('@');
+      const displayName = isEmail ? cleanLogin.split('@')[0] : cleanLogin;
+      const uniqueSuffix = `${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+      const username = `${displayName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase().substring(0, 15)}_${uniqueSuffix}`;
+      const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(displayName)}`;
+
+      user = await prisma.user.create({
+        data: {
+          email: isEmail ? cleanLogin : null,
+          username,
+          passwordHash,
+          displayName,
+          avatarUrl,
+          isGuest: false,
+          role: 'USER',
+          profile: {
+            create: {
+              country: 'India',
+              languages: 'Hindi,English',
+              interests: 'Bollywood,Music,Chat',
+              ageConfirmed: true,
+              preferredChatMode: 'video'
+            }
+          }
+        },
+        include: { profile: true }
+      });
+    } else {
+      // User exists, verify password
+      if (!user.passwordHash) {
+        return res.status(401).json({ error: 'This account was created with Google/Gmail. Please sign in with Gmail.' });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Incorrect password. Please try again.' });
+      }
     }
 
     if (user.isBanned) {
@@ -197,7 +236,7 @@ router.post('/login', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
 
@@ -418,28 +457,32 @@ router.post('/firebase-sync', async (req: Request, res: Response) => {
   }
 });
 
-// 7. Google Sign-In Simulation / OAuth Endpoint
+// 7. Google Sign-In / Direct Gmail Authentication Endpoint
 router.post('/google', async (req: Request, res: Response) => {
   try {
-    const { email, displayName, photoUrl, googleId } = req.body;
+    const { email, displayName, photoUrl, gender, region } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ error: 'Google email is required' });
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid Gmail or email address is required' });
     }
 
-    let user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    const cleanEmail = email.toLowerCase().trim();
+
+    let user = await prisma.user.findFirst({
+      where: { email: cleanEmail },
       include: { profile: true }
     });
 
     if (!user) {
-      const cleanName = displayName || email.split('@')[0];
-      const username = `g_${cleanName.replace(/\s+/g, '_').toLowerCase()}_${Math.floor(100 + Math.random() * 900)}`;
+      const cleanName = displayName?.trim() || cleanEmail.split('@')[0];
+      const uniqueSuffix = `${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+      const safePrefix = cleanName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase().substring(0, 15) || 'user';
+      const username = `g_${safePrefix}_${uniqueSuffix}`;
       const avatarUrl = photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanName)}`;
 
       user = await prisma.user.create({
         data: {
-          email: email.toLowerCase(),
+          email: cleanEmail,
           username,
           displayName: cleanName,
           avatarUrl,
@@ -447,14 +490,23 @@ router.post('/google', async (req: Request, res: Response) => {
           role: 'USER',
           profile: {
             create: {
-              country: 'Global',
-              languages: 'English',
-              interests: 'Technology,Travel,Music',
+              gender: gender || 'Not Specified',
+              region: region || 'Global',
+              country: 'India',
+              languages: 'Hindi,English',
+              interests: 'Music,Bollywood,Movies,Travel',
               ageConfirmed: true,
+              preferredChatMode: 'video',
             }
           }
         },
         include: { profile: true }
+      });
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({
+        error: `Your account is suspended: ${user.banReason || 'Community Guidelines Violation'}`
       });
     }
 
@@ -475,8 +527,8 @@ router.post('/google', async (req: Request, res: Response) => {
       }
     });
   } catch (err) {
-    console.error('Google auth error:', err);
-    res.status(500).json({ error: 'Google authentication failed' });
+    console.error('Google/Gmail sign-in error:', err);
+    res.status(500).json({ error: 'Google sign-in failed. Please try again.' });
   }
 });
 

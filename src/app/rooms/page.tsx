@@ -30,6 +30,7 @@ import TimepassLogo from '@/components/TimepassLogo';
 import AuthModal from '@/components/AuthModal';
 import { useAuth } from '@/lib/auth-context';
 import { soundManager } from '@/lib/sound';
+import { getSocket } from '@/lib/socket';
 
 interface RoomSummary {
   id: string;
@@ -96,9 +97,23 @@ export default function RoomsLobbyPage() {
 
   useEffect(() => {
     fetchRooms();
-    const interval = setInterval(fetchRooms, 4000);
-    return () => clearInterval(interval);
-  }, []);
+
+    // REAL-TIME INSTANT ROOM UPDATES: Anyone joining or creating rooms updates lobby instantly
+    const socket = getSocket(user?.id, user?.displayName);
+    const handleRoomsUpdated = (updatedRooms: RoomSummary[]) => {
+      if (Array.isArray(updatedRooms)) {
+        setRooms(updatedRooms);
+      }
+    };
+
+    socket.on('custom-rooms-updated', handleRoomsUpdated);
+    const interval = setInterval(fetchRooms, 5000);
+
+    return () => {
+      socket.off('custom-rooms-updated', handleRoomsUpdated);
+      clearInterval(interval);
+    };
+  }, [user]);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();

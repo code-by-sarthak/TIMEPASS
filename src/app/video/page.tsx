@@ -64,6 +64,7 @@ function VideoChatContent() {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [callMode, setCallMode] = useState<'video' | 'audio'>(requestedMode === 'audio' ? 'audio' : 'video');
   const [layoutMode, setLayoutMode] = useState<'split' | 'pip'>('split');
+  const [isLocalMinimized, setIsLocalMinimized] = useState(false);
   const [isPartnerMuted, setIsPartnerMuted] = useState(false);
   const [isPartnerVideoOff, setIsPartnerVideoOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -672,7 +673,9 @@ function VideoChatContent() {
           /* PROPER BALANCED SPLIT ALIGNMENT: 50% Stranger (Left/Top) + 50% You (Right/Bottom) */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-4 w-full h-full max-w-7xl mx-auto">
             {/* Box 1: Stranger Feed / Radar State */}
-            <div className="relative w-full h-full min-h-[220px] rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-neutral-950 flex items-center justify-center">
+            <div className={`relative w-full h-full min-h-[220px] rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-neutral-950 flex items-center justify-center transition-all ${
+              isLocalMinimized ? 'md:col-span-2' : ''
+            }`}>
               {callState === 'connected' || callState === 'connecting' ? (
                 <VideoPlayer
                   stream={remoteStream}
@@ -731,32 +734,52 @@ function VideoChatContent() {
             </div>
 
             {/* Box 2: Your Live Video Feed (ALWAYS ON in Video Call!) */}
-            <div className="relative w-full h-full min-h-[220px] rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-pink-500/30 shadow-2xl bg-neutral-950 flex items-center justify-center">
-              <VideoPlayer
-                stream={localStream}
-                isLocal={true}
-                isMuted={isMuted}
-                isVideoOff={isVideoOff || callMode === 'audio'}
-                displayName={user?.displayName ? `${user.displayName} (You)` : 'You'}
-                avatarUrl={user?.avatarUrl}
-                gender={user?.profile?.gender}
-                region={user?.profile?.region}
-                callMode={callMode}
-              />
-              {isAvatarMode && callMode === 'video' && (
-                <div className="absolute bottom-3 right-3 flex items-center gap-1 z-20">
-                  <button
-                    onClick={handleSwitchToRealCamera}
-                    disabled={isSwitchingCamera}
-                    className="px-2.5 py-1 rounded-xl bg-black/80 hover:bg-black backdrop-blur-md text-[10px] font-bold text-white border border-pink-500/40 transition-all flex items-center gap-1.5 shadow-lg"
-                    title="Switch to Real Camera"
-                  >
-                    <Camera className="w-3 h-3 text-pink-400" />
-                    <span>{isSwitchingCamera ? 'Connecting...' : 'Real Camera'}</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            {isLocalMinimized ? (
+              <div className="absolute bottom-24 sm:bottom-28 right-4 sm:right-8 z-30 pointer-events-auto">
+                <VideoPlayer
+                  stream={localStream}
+                  isLocal={true}
+                  isMuted={isMuted}
+                  isVideoOff={isVideoOff || callMode === 'audio'}
+                  displayName={user?.displayName ? `${user.displayName} (You)` : 'You'}
+                  avatarUrl={user?.avatarUrl}
+                  gender={user?.profile?.gender}
+                  region={user?.profile?.region}
+                  callMode={callMode}
+                  isMinimized={true}
+                  onToggleMinimize={() => setIsLocalMinimized(false)}
+                />
+              </div>
+            ) : (
+              <div className="relative w-full h-full min-h-[220px] rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-pink-500/30 shadow-2xl bg-neutral-950 flex items-center justify-center">
+                <VideoPlayer
+                  stream={localStream}
+                  isLocal={true}
+                  isMuted={isMuted}
+                  isVideoOff={isVideoOff || callMode === 'audio'}
+                  displayName={user?.displayName ? `${user.displayName} (You)` : 'You'}
+                  avatarUrl={user?.avatarUrl}
+                  gender={user?.profile?.gender}
+                  region={user?.profile?.region}
+                  callMode={callMode}
+                  isMinimized={false}
+                  onToggleMinimize={() => setIsLocalMinimized(true)}
+                />
+                {isAvatarMode && callMode === 'video' && (
+                  <div className="absolute bottom-3 right-3 flex items-center gap-1 z-20">
+                    <button
+                      onClick={handleSwitchToRealCamera}
+                      disabled={isSwitchingCamera}
+                      className="px-2.5 py-1 rounded-xl bg-black/80 hover:bg-black backdrop-blur-md text-[10px] font-bold text-white border border-pink-500/40 transition-all flex items-center gap-1.5 shadow-lg"
+                      title="Switch to Real Camera"
+                    >
+                      <Camera className="w-3 h-3 text-pink-400" />
+                      <span>{isSwitchingCamera ? 'Connecting...' : 'Real Camera'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           /* FOCUS / THEATER VIEW: Large Remote Stage + Floating Local PiP */
@@ -778,7 +801,11 @@ function VideoChatContent() {
             </div>
 
             {/* Floating PiP (Local Camera) */}
-            <div className="absolute top-4 sm:top-auto sm:bottom-4 right-3 sm:right-6 w-28 xs:w-36 sm:w-56 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-pink-500/40 z-20 backdrop-blur-md hover:scale-105 transition-all">
+            <div className={`absolute ${
+              isLocalMinimized
+                ? 'bottom-24 sm:bottom-28 right-4 sm:right-8 w-auto'
+                : 'top-4 sm:top-auto sm:bottom-4 right-3 sm:right-6 w-28 xs:w-36 sm:w-56 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-pink-500/40'
+            } z-20 backdrop-blur-md hover:scale-105 transition-all`}>
               <VideoPlayer
                 stream={localStream}
                 isLocal={true}
@@ -789,6 +816,8 @@ function VideoChatContent() {
                 gender={user?.profile?.gender}
                 region={user?.profile?.region}
                 callMode={callMode}
+                isMinimized={isLocalMinimized}
+                onToggleMinimize={() => setIsLocalMinimized(!isLocalMinimized)}
               />
             </div>
           </div>

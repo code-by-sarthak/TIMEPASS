@@ -293,13 +293,18 @@ export default function CustomRoomViewPage() {
       }
     });
 
-    // 2. Member Joined: Add to member list
+    // 2. Member Joined Real-Time: Add to member list & show live join announcement
     socket.on('custom-room-member-joined', (data: { member: RoomMember; memberCount: number }) => {
       setMembers((prev) => {
         if (prev.some((m) => m.socketId === data.member.socketId)) return prev;
         return [...prev, data.member];
       });
-      soundManager.playPop();
+      soundManager.playStreak();
+      setSystemAnnouncement({
+        title: '🎉 New Squad Member Joined!',
+        message: `${data.member.displayName} just joined the room via Invite Code!`
+      });
+      setTimeout(() => setSystemAnnouncement(null), 5000);
     });
 
     // 3. WebRTC Offer Received: Answer caller
@@ -729,14 +734,25 @@ export default function CustomRoomViewPage() {
                     </div>
                   )}
 
-                  {/* Top-Right Mic Indicator */}
-                  <div className="absolute top-1.5 sm:top-2.5 right-1.5 sm:right-2.5 z-20">
+                  {/* Aligned Upper Video & Audio Status Icons */}
+                  <div className="absolute top-1.5 sm:top-2.5 right-1.5 sm:right-2.5 z-20 flex items-center gap-1">
                     <span
-                      className={`p-1 sm:p-1.5 rounded-lg flex items-center justify-center ${
-                        member.isMuted
-                          ? 'bg-red-500/80 text-white'
-                          : 'bg-black/60 text-emerald-400 border border-emerald-500/30'
+                      className={`p-1 sm:p-1.5 rounded-lg flex items-center justify-center backdrop-blur-md ${
+                        hasVideo
+                          ? 'bg-pink-500/30 text-pink-300 border border-pink-500/40'
+                          : 'bg-amber-500/30 text-amber-300 border border-amber-500/40'
                       }`}
+                      title={hasVideo ? 'Camera Active' : 'Camera Off'}
+                    >
+                      {hasVideo ? <VideoIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <VideoOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                    </span>
+                    <span
+                      className={`p-1 sm:p-1.5 rounded-lg flex items-center justify-center backdrop-blur-md ${
+                        member.isMuted
+                          ? 'bg-red-500/80 text-white border border-red-500/40'
+                          : 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                      }`}
+                      title={!member.isMuted ? 'Mic Active' : 'Mic Muted'}
                     >
                       {member.isMuted ? <MicOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <Mic className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                     </span>
