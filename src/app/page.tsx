@@ -64,11 +64,13 @@ function formatTimeAgo(ts: number): string {
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, continueAsGuest } = useAuth();
+  const { user } = useAuth();
   const [selectedInterests, setSelectedInterests] = useState<string[]>(['Music', 'Movies', 'Travel']);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('Hindi');
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<'Anyone' | 'Girls' | 'Boys'>('Anyone');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authPromptMessage, setAuthPromptMessage] = useState<string>('');
+  const [pendingRedirectUrl, setPendingRedirectUrl] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // 100% Real Live Data State (No dummy names)
@@ -155,27 +157,22 @@ export default function HomePage() {
   };
 
   const handleStartChat = async (mode: 'video' | 'text', subMode?: 'avatar') => {
-    // If not signed in, seamlessly initialize an instant guest session so visitor is never blocked
-    if (!user) {
-      const ok = await continueAsGuest({
-        displayName: `Guest_${Math.floor(1000 + Math.random() * 9000)}`,
-        gender: selectedGenderFilter === 'Anyone' ? 'Female' : selectedGenderFilter,
-        region: 'India',
-        country: 'India'
-      });
-      if (!ok) {
-        setIsAuthOpen(true);
-        return;
-      }
-    }
-
     const params = new URLSearchParams();
     if (selectedInterests.length > 0) params.set('interests', selectedInterests.join(','));
     if (selectedLanguage) params.set('language', selectedLanguage);
     if (selectedGenderFilter !== 'Anyone') params.set('genderPref', selectedGenderFilter);
     if (subMode === 'avatar') params.set('mode', 'avatar');
+    const destination = `/${mode}?${params.toString()}`;
 
-    router.push(`/${mode}?${params.toString()}`);
+    // STRICT AUTHENTICATION GATE: User must login through Gmail or Email to access Video & Chat
+    if (!user) {
+      setAuthPromptMessage('Sign in with your Gmail or Email account to start 1-on-1 video calls & chat');
+      setPendingRedirectUrl(destination);
+      setIsAuthOpen(true);
+      return;
+    }
+
+    router.push(destination);
   };
 
   const currentActivity = recentActivities.length > 0 
@@ -634,8 +631,22 @@ export default function HomePage() {
 
       <Footer />
 
-      {/* Auth Modal with Google & Guest with full details */}
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      {/* Auth Modal with Gmail / Email requirement */}
+      <AuthModal 
+        isOpen={isAuthOpen} 
+        onClose={() => {
+          setIsAuthOpen(false);
+          setAuthPromptMessage('');
+        }}
+        promptMessage={authPromptMessage}
+        onSuccess={() => {
+          if (pendingRedirectUrl) {
+            const dest = pendingRedirectUrl;
+            setPendingRedirectUrl(null);
+            router.push(dest);
+          }
+        }}
+      />
     </div>
   );
 }

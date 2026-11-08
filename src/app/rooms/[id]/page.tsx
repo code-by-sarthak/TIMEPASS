@@ -19,13 +19,15 @@ import {
   Send, 
   Music2, 
   Crown,
-  Volume2
+  Volume2,
+  Chrome
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getSocket } from '@/lib/socket';
 import { soundManager } from '@/lib/sound';
 import { useMusic } from '@/lib/music-context';
 import TimepassLogo from '@/components/TimepassLogo';
+import AuthModal from '@/components/AuthModal';
 
 interface RoomMember {
   socketId: string;
@@ -80,7 +82,7 @@ const ICE_SERVERS: RTCConfiguration = {
 export default function CustomRoomViewPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { tracks, playTrack } = useMusic();
 
   const roomId = params.id as string;
@@ -92,6 +94,8 @@ export default function CustomRoomViewPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMusicPickerOpen, setIsMusicPickerOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [floatingEmojis, setFloatingEmojis] = useState<Array<{ id: number; emoji: string; left: number }>>([]);
   const [systemAnnouncement, setSystemAnnouncement] = useState<{ title: string; message: string } | null>(null);
 
@@ -444,24 +448,76 @@ export default function CustomRoomViewPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleToggleMic = () => {
-    const nextState = !isMuted;
-    setIsMuted(nextState);
+  const handleToggleMic = async () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+
     if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach((track) => (track.enabled = !nextState));
+      let audioTrack = localStreamRef.current.getAudioTracks()[0];
+      // If unmuting and track is missing or ended, dynamically re-acquire mic
+      if (!nextMuted && (!audioTrack || audioTrack.readyState === 'ended')) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: false
+          });
+          const newTrack = stream.getAudioTracks()[0];
+          if (newTrack) {
+            if (audioTrack) localStreamRef.current.removeTrack(audioTrack);
+            localStreamRef.current.addTrack(newTrack);
+            audioTrack = newTrack;
+            peersRef.current.forEach((pc) => {
+              const sender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+              if (sender) sender.replaceTrack(newTrack);
+            });
+          }
+        } catch (err) {
+          console.warn('Re-acquiring mic failed:', err);
+        }
+      }
+      if (audioTrack) {
+        audioTrack.enabled = !nextMuted;
+      }
     }
+
     const socket = getSocket();
-    socket.emit('custom-room-toggle-media', { isMuted: nextState });
+    socket.emit('custom-room-toggle-media', { isMuted: nextMuted });
   };
 
-  const handleToggleVideo = () => {
-    const nextState = !isVideoOff;
-    setIsVideoOff(nextState);
+  const handleToggleVideo = async () => {
+    const nextVideoOff = !isVideoOff;
+    setIsVideoOff(nextVideoOff);
+
     if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((track) => (track.enabled = !nextState));
+      let videoTrack = localStreamRef.current.getVideoTracks()[0];
+      // If turning video on and track is missing or ended, dynamically re-acquire camera
+      if (!nextVideoOff && (!videoTrack || videoTrack.readyState === 'ended')) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' },
+            audio: false
+          });
+          const newTrack = stream.getVideoTracks()[0];
+          if (newTrack) {
+            if (videoTrack) localStreamRef.current.removeTrack(videoTrack);
+            localStreamRef.current.addTrack(newTrack);
+            videoTrack = newTrack;
+            peersRef.current.forEach((pc) => {
+              const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+              if (sender) sender.replaceTrack(newTrack);
+            });
+          }
+        } catch (err) {
+          console.warn('Re-acquiring camera failed:', err);
+        }
+      }
+      if (videoTrack) {
+        videoTrack.enabled = !nextVideoOff;
+      }
     }
+
     const socket = getSocket();
-    socket.emit('custom-room-toggle-media', { isVideoOff: nextState });
+    socket.emit('custom-room-toggle-media', { isVideoOff: nextVideoOff });
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -481,10 +537,20 @@ export default function CustomRoomViewPage() {
 
   const handleCopyLink = () => {
     if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(window.location.href);
+      const inviteUrl = `${window.location.origin}/rooms/${roomId}`;
+      navigator.clipboard.writeText(inviteUrl);
       setCopiedLink(true);
       soundManager.playPop();
       setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(roomId);
+      setCopiedCode(true);
+      soundManager.playPop();
+      setTimeout(() => setCopiedCode(false), 2000);
     }
   };
 
@@ -543,8 +609,22 @@ export default function CustomRoomViewPage() {
           )}
         </div>
 
-        {/* Right: Member count, Invite, Bollywood DJ & Leave */}
+        {/* Right: Member count, Room Invite Code, Invite Link, Bollywood DJ & Leave */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Room Invite Code Badge with 1-Click Copy */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-pink-500/15 border border-pink-500/30 text-xs font-mono font-bold">
+            <span className="text-[10px] text-pink-400">#CODE</span>
+            <span className="text-white font-black truncate max-w-[70px] xs:max-w-[110px]">{roomId}</span>
+            <button
+              type="button"
+              onClick={handleCopyCode}
+              className="p-0.5 hover:text-white text-pink-300 transition-colors"
+              title="Copy Room Invite Code to Share"
+            >
+              {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
           {/* Member Count Pill (Max 8) */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 text-xs font-bold">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
@@ -952,6 +1032,45 @@ export default function CustomRoomViewPage() {
           </div>
         </div>
       )}
+      {/* STRICT AUTHENTICATION GATE: User must login through Gmail or Email */}
+      {!user && !loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in">
+          <div className="max-w-md w-full glass-panel p-6 sm:p-8 rounded-3xl border border-pink-500/30 text-center space-y-4 shadow-2xl">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center mx-auto text-white shadow-lg shadow-pink-500/30">
+              <Users className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-white">Sign In to Join Room</h3>
+              <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
+                Squad rooms, video mesh, and real-time chat are exclusively available to users signed in with a Gmail or Email account.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsAuthOpen(true)}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white font-black text-sm shadow-xl shadow-pink-500/30 hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-2"
+            >
+              <Chrome className="w-4 h-4" />
+              <span>Sign In with Gmail or Email</span>
+            </button>
+            <button
+              onClick={() => router.push('/rooms')}
+              className="text-xs text-gray-400 hover:text-white transition-colors"
+            >
+              ← Back to Rooms Lobby
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal for Custom Room Gate */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        promptMessage="Sign in with Gmail or Email to join this squad room"
+        onSuccess={() => {
+          setIsAuthOpen(false);
+        }}
+      />
     </div>
   );
 }

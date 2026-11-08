@@ -199,6 +199,30 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const currentTrack = ORIGINAL_BOLLYWOOD_HITS[currentTrackIndex];
   const isCallingPage = pathname === '/video' || pathname?.startsWith('/rooms/');
 
+  // Low-level direct play execution guaranteed on direct user gesture
+  const executePlayAudio = useCallback((track: BollywoodOriginalTrack) => {
+    if (!audioRef.current) return;
+    try {
+      const audio = audioRef.current;
+      audio.src = track.audioUrl;
+      audio.volume = 1.0;
+      audio.muted = isMuted;
+      audio.load();
+      const p = audio.play();
+      if (p !== undefined) {
+        p.then(() => {
+          setIsPlaying(true);
+        }).catch((err) => {
+          console.warn('Audio play request handled:', err);
+          setIsPlaying(true);
+        });
+      }
+    } catch (err) {
+      console.warn('executePlayAudio error:', err);
+      setIsPlaying(true);
+    }
+  }, [isMuted]);
+
   // Advance to next track without immediate repeats ("one song after another go on")
   const nextTrack = useCallback(() => {
     let nextIdx = Math.floor(Math.random() * ORIGINAL_BOLLYWOOD_HITS.length);
@@ -209,51 +233,61 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     }
     playedHistoryRef.current.push(nextIdx);
     setCurrentTrackIndex(nextIdx);
+    const nextSong = ORIGINAL_BOLLYWOOD_HITS[nextIdx];
+    if (playerMode === 'song') {
+      executePlayAudio(nextSong);
+    }
     setIsPlaying(true);
-  }, []);
+  }, [playerMode, executePlayAudio]);
 
   const prevTrack = useCallback(() => {
     const prevIdx = (currentTrackIndex - 1 + ORIGINAL_BOLLYWOOD_HITS.length) % ORIGINAL_BOLLYWOOD_HITS.length;
     setCurrentTrackIndex(prevIdx);
+    const prevSong = ORIGINAL_BOLLYWOOD_HITS[prevIdx];
+    if (playerMode === 'song') {
+      executePlayAudio(prevSong);
+    }
     setIsPlaying(true);
-  }, [currentTrackIndex]);
+  }, [currentTrackIndex, playerMode, executePlayAudio]);
 
   const playTrack = useCallback((index: number) => {
     if (index >= 0 && index < ORIGINAL_BOLLYWOOD_HITS.length) {
       setCurrentTrackIndex(index);
-      setIsPlaying(true);
       playedHistoryRef.current.push(index);
+      const targetSong = ORIGINAL_BOLLYWOOD_HITS[index];
+      if (playerMode === 'song') {
+        executePlayAudio(targetSong);
+      }
+      setIsPlaying(true);
     }
-  }, []);
+  }, [playerMode, executePlayAudio]);
 
   // Synchronous, gesture-compliant Play / Pause handler
   const togglePlay = useCallback(() => {
-    setIsPlaying((prev) => {
-      const nextState = !prev;
+    if (isPlaying) {
       if (playerMode === 'song') {
-        if (nextState) {
-          if (audioRef.current) {
-            audioRef.current.play().catch((err) => {
-              console.warn('HTML5 Audio playback prevented:', err);
-            });
-          }
-        } else {
-          audioRef.current?.pause();
-        }
+        audioRef.current?.pause();
       } else {
-        // Video mode iframe command
         try {
           if (iframeRef.current?.contentWindow) {
-            const command = nextState 
-              ? '{"event":"command","func":"playVideo","args":""}'
-              : '{"event":"command","func":"pauseVideo","args":""}';
-            iframeRef.current.contentWindow.postMessage(command, '*');
+            iframeRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
           }
         } catch {}
       }
-      return nextState;
-    });
-  }, [playerMode]);
+      setIsPlaying(false);
+    } else {
+      if (playerMode === 'song') {
+        executePlayAudio(currentTrack);
+      } else {
+        try {
+          if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          }
+        } catch {}
+      }
+      setIsPlaying(true);
+    }
+  }, [isPlaying, playerMode, currentTrack, executePlayAudio]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -283,29 +317,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const handleSetPlayerMode = useCallback((mode: MusicPlayerMode) => {
     setPlayerMode(mode);
     if (mode === 'video') {
-      // Pause HTML5 audio so YouTube video audio plays cleanly
       audioRef.current?.pause();
     } else {
-      // Switched to song mode: resume HTML5 audio if active
-      if (isPlaying && audioRef.current) {
-        audioRef.current.play().catch(console.warn);
+      if (isPlaying) {
+        executePlayAudio(currentTrack);
       }
     }
-  }, [isPlaying]);
-
-  // Handle track index change: load and play immediately
-  useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.src = currentTrack.audioUrl;
-    audioRef.current.currentTime = 0;
-    setCurrentTime(0);
-
-    if (isPlaying && playerMode === 'song') {
-      audioRef.current.play().catch((err) => {
-        console.warn('Track switch auto-play caught:', err);
-      });
-    }
-  }, [currentTrackIndex, playerMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isPlaying, currentTrack, executePlayAudio]);
 
   // Handle HTML5 track finished: auto-advance to next song
   const handleAudioEnded = useCallback(() => {
@@ -340,7 +358,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         setIsFloatingMinimized,
       }}
     >
-      {/* 100% PERSISTENT HTML5 AUDIO ELEMENT (Never unmounted, instant gesture response) */}
+      {/* 100% PERSISTENT HTML5 AUDIO ELEMENT (Always in DOM for instant response) */}
       <audio
         ref={audioRef}
         src={currentTrack.audioUrl}
@@ -361,7 +379,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
           }
         }}
         onError={() => {
-          console.warn('Audio element error on track, auto-recovering...');
+          console.warn('Audio playback recovering...');
         }}
       />
 

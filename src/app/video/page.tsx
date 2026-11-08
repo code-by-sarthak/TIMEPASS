@@ -23,7 +23,8 @@ import {
   Sparkles,
   RotateCw,
   Users,
-  X
+  X,
+  Chrome
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getSocket } from '@/lib/socket';
@@ -36,11 +37,13 @@ import ChatDrawer from '@/components/ChatDrawer';
 import ReportModal from '@/components/ReportModal';
 import MatchingRadar from '@/components/MatchingRadar';
 import DeviceSettingsModal from '@/components/DeviceSettingsModal';
+import AuthModal from '@/components/AuthModal';
 
 function VideoChatContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   // Call States
   const [callState, setCallState] = useState<CallState>('idle');
@@ -237,14 +240,16 @@ function VideoChatContent() {
     }
   };
 
-  // Start immediately on page mount (either avatar mode or video mode)
+  // Start immediately on page mount once authenticated (either avatar mode or video mode)
   useEffect(() => {
+    if (loading) return;
+    if (!user) return;
     if (requestedMode === 'avatar') {
       handleContinueAvatarMode();
     } else {
       startVideoSession();
     }
-  }, [requestedMode, handleContinueAvatarMode, startVideoSession]);
+  }, [loading, user, requestedMode, handleContinueAvatarMode, startVideoSession]);
 
   // Socket Event Handlers
   useEffect(() => {
@@ -451,19 +456,21 @@ function VideoChatContent() {
     router.push('/');
   };
 
-  // Media Toggle Handlers
-  const handleToggleMic = () => {
+  // Media Toggle Handlers with Guaranteed Turn Off / Turn On
+  const handleToggleMic = async () => {
     if (!webrtcRef.current) return;
-    const isNowMuted = !webrtcRef.current.toggleAudio();
+    const nowActive = await webrtcRef.current.toggleAudio();
+    const isNowMuted = !nowActive;
     setIsMuted(isNowMuted);
 
     const socket = getSocket();
     socket.emit('media-state-change', { micMuted: isNowMuted });
   };
 
-  const handleToggleVideo = () => {
+  const handleToggleVideo = async () => {
     if (!webrtcRef.current) return;
-    const isNowOff = !webrtcRef.current.toggleVideo();
+    const nowActive = await webrtcRef.current.toggleVideo();
+    const isNowOff = !nowActive;
     setIsVideoOff(isNowOff);
 
     const socket = getSocket();
@@ -785,6 +792,46 @@ function VideoChatContent() {
       <DeviceSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      {/* STRICT AUTHENTICATION GATE: User must login through Gmail or Email */}
+      {!user && !loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in">
+          <div className="max-w-md w-full glass-panel p-6 sm:p-8 rounded-3xl border border-pink-500/30 text-center space-y-4 shadow-2xl">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center mx-auto text-white shadow-lg shadow-pink-500/30">
+              <Video className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-white">Sign In Required</h3>
+              <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
+                To keep TIMEPASS safe and genuine, 1-on-1 video calls and chat are exclusively available to users signed in with a Gmail or Email account.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsAuthOpen(true)}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white font-black text-sm shadow-xl shadow-pink-500/30 hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-2"
+            >
+              <Chrome className="w-4 h-4" />
+              <span>Sign In with Gmail or Email</span>
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="text-xs text-gray-400 hover:text-white transition-colors"
+            >
+              ← Back to Home
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal for Video Chat Gate */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        promptMessage="Sign in with Gmail or Email to unlock 1-on-1 video calls"
+        onSuccess={() => {
+          setIsAuthOpen(false);
+        }}
       />
     </div>
   );

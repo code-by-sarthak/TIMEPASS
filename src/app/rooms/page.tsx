@@ -18,12 +18,16 @@ import {
   X,
   ShieldCheck,
   Flame,
-  Volume2
+  Volume2,
+  Copy,
+  Check,
+  Share2
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import BollywoodMusicPlayer from '@/components/BollywoodMusicPlayer';
 import TimepassLogo from '@/components/TimepassLogo';
+import AuthModal from '@/components/AuthModal';
 import { useAuth } from '@/lib/auth-context';
 import { soundManager } from '@/lib/sound';
 
@@ -59,6 +63,12 @@ export default function RoomsLobbyPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authPromptMessage, setAuthPromptMessage] = useState('');
+  const [pendingRoomId, setPendingRoomId] = useState<string | null>(null);
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
 
   // Create room form state
   const [roomName, setRoomName] = useState('');
@@ -170,6 +180,11 @@ export default function RoomsLobbyPage() {
             <button
               onClick={() => {
                 soundManager.playPop();
+                if (!user) {
+                  setAuthPromptMessage('Sign in with your Gmail or Email to create an 8-member squad room');
+                  setIsAuthOpen(true);
+                  return;
+                }
                 setIsCreateModalOpen(true);
               }}
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black text-sm shadow-xl shadow-pink-500/25 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -179,11 +194,48 @@ export default function RoomsLobbyPage() {
             </button>
 
             <button
-              onClick={() => router.push('/video')}
+              onClick={() => {
+                if (!user) {
+                  setAuthPromptMessage('Sign in with your Gmail or Email to start 1-on-1 video calls & chat');
+                  setPendingRoomId(null);
+                  setIsAuthOpen(true);
+                  return;
+                }
+                router.push('/video');
+              }}
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl glass-toolbar border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-2"
             >
               <Radio className="w-4 h-4 text-pink-400" />
               <span>1-on-1 Random Video</span>
+            </button>
+          </div>
+
+          {/* Quick Join with Room Invite Code */}
+          <div className="max-w-md mx-auto mt-6 p-2 rounded-2xl glass-panel border border-pink-500/30 flex items-center gap-2 shadow-lg shadow-pink-500/10">
+            <span className="text-[11px] font-mono font-bold text-pink-400 pl-2 shrink-0">#INVITE</span>
+            <input
+              type="text"
+              placeholder="Paste Room Invite Code (e.g. room_123)..."
+              value={inviteCodeInput}
+              onChange={(e) => setInviteCodeInput(e.target.value)}
+              className="flex-1 bg-transparent text-white text-xs placeholder-gray-500 focus:outline-none"
+            />
+            <button
+              onClick={() => {
+                const code = inviteCodeInput.trim().replace(/^#/, '');
+                if (!code) return;
+                if (!user) {
+                  setAuthPromptMessage('Sign in with your Gmail or Email to join this squad room');
+                  setPendingRoomId(code);
+                  setIsAuthOpen(true);
+                  return;
+                }
+                router.push(`/rooms/${code}`);
+              }}
+              disabled={!inviteCodeInput.trim()}
+              className="px-4 py-1.5 rounded-xl bg-pink-500 hover:bg-pink-400 text-white font-black text-xs transition-all disabled:opacity-40"
+            >
+              Join Room
             </button>
           </div>
         </div>
@@ -275,43 +327,92 @@ export default function RoomsLobbyPage() {
                   </div>
 
                   {/* Room Meta & Action */}
-                  <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-between">
-                    <div className="truncate">
-                      {room.isSystemRoom || !room.hostName ? (
-                        <>
-                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-emerald-400" />
-                            <span>Official Public Lounge</span>
-                          </span>
-                          <span className="text-xs text-gray-400 truncate block">
-                            TIMEPASS Community
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-[10px] text-pink-400 font-bold block">Created by</span>
-                          <span className="text-xs font-bold text-white truncate block max-w-[140px]">
-                            {room.hostName}
-                          </span>
-                        </>
-                      )}
+                  <div className="pt-3 mt-3 border-t border-white/5 flex flex-col gap-2.5">
+                    {/* Invite Code & Share Bar */}
+                    <div className="flex items-center justify-between text-[11px] bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5">
+                      <div className="flex items-center gap-1 font-mono text-[10px] text-gray-300 truncate">
+                        <span className="text-pink-400 font-bold">INVITE:</span>
+                        <span className="text-white font-bold truncate max-w-[90px]">{room.id}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(room.id);
+                            setCopiedCodeId(room.id);
+                            soundManager.playPop();
+                            setTimeout(() => setCopiedCodeId(null), 2000);
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] font-bold text-pink-300 flex items-center gap-1 transition-colors"
+                          title="Copy Room Invite Code"
+                        >
+                          {copiedCodeId === room.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedCodeId === room.id ? 'Copied' : 'Code'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const link = typeof window !== 'undefined' ? `${window.location.origin}/rooms/${room.id}` : `/rooms/${room.id}`;
+                            navigator.clipboard.writeText(link);
+                            setCopiedLinkId(room.id);
+                            soundManager.playPop();
+                            setTimeout(() => setCopiedLinkId(null), 2000);
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] font-bold text-gray-300 hover:text-white flex items-center gap-1 transition-colors"
+                          title="Share Direct Room Link"
+                        >
+                          {copiedLinkId === room.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Share2 className="w-3 h-3" />}
+                          <span>{copiedLinkId === room.id ? 'Shared' : 'Share'}</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        soundManager.playPop();
-                        router.push(`/rooms/${room.id}`);
-                      }}
-                      disabled={isFull}
-                      className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md ${
-                        isFull
-                          ? 'bg-white/10 text-gray-500 cursor-not-allowed'
-                          : 'gradient-button text-white shadow-pink-500/20 hover:scale-105 active:scale-95'
-                      }`}
-                    >
-                      <span>{isFull ? 'Room Full' : 'Join Room'}</span>
-                      {!isFull && <ArrowRight className="w-3.5 h-3.5" />}
-                    </button>
+                    <div className="flex items-center justify-between">
+                      <div className="truncate">
+                        {room.isSystemRoom || !room.hostName ? (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-emerald-400" />
+                              <span>Official Lounge</span>
+                            </span>
+                            <span className="text-xs text-gray-400 truncate block">
+                              Community
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[10px] text-pink-400 font-bold block">Created by</span>
+                            <span className="text-xs font-bold text-white truncate block max-w-[130px]">
+                              {room.hostName}
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          soundManager.playPop();
+                          if (!user) {
+                            setAuthPromptMessage('Sign in with your Gmail or Email account to join this squad room & chat');
+                            setPendingRoomId(room.id);
+                            setIsAuthOpen(true);
+                            return;
+                          }
+                          router.push(`/rooms/${room.id}`);
+                        }}
+                        disabled={isFull}
+                        className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md ${
+                          isFull
+                            ? 'bg-white/10 text-gray-500 cursor-not-allowed'
+                            : 'gradient-button text-white shadow-pink-500/20 hover:scale-105 active:scale-95'
+                        }`}
+                      >
+                        <span>{isFull ? 'Room Full' : 'Join Room'}</span>
+                        {!isFull && <ArrowRight className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -440,6 +541,24 @@ export default function RoomsLobbyPage() {
           </div>
         </div>
       )}
+
+      {/* Auth Modal for Rooms Access */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => {
+          setIsAuthOpen(false);
+          setAuthPromptMessage('');
+        }}
+        promptMessage={authPromptMessage}
+        onSuccess={() => {
+          setIsAuthOpen(false);
+          if (pendingRoomId) {
+            const dest = pendingRoomId;
+            setPendingRoomId(null);
+            router.push(`/rooms/${dest}`);
+          }
+        }}
+      />
 
       <Footer />
     </div>
