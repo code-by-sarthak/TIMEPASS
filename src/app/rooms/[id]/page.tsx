@@ -448,76 +448,32 @@ export default function CustomRoomViewPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleToggleMic = async () => {
+  const handleToggleMic = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
 
     if (localStreamRef.current) {
-      let audioTrack = localStreamRef.current.getAudioTracks()[0];
-      // If unmuting and track is missing or ended, dynamically re-acquire mic
-      if (!nextMuted && (!audioTrack || audioTrack.readyState === 'ended')) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-            video: false
-          });
-          const newTrack = stream.getAudioTracks()[0];
-          if (newTrack) {
-            if (audioTrack) localStreamRef.current.removeTrack(audioTrack);
-            localStreamRef.current.addTrack(newTrack);
-            audioTrack = newTrack;
-            peersRef.current.forEach((pc) => {
-              const sender = pc.getSenders().find((s) => s.track?.kind === 'audio');
-              if (sender) sender.replaceTrack(newTrack);
-            });
-          }
-        } catch (err) {
-          console.warn('Re-acquiring mic failed:', err);
-        }
-      }
-      if (audioTrack) {
-        audioTrack.enabled = !nextMuted;
-      }
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !nextMuted;
+      });
     }
 
     const socket = getSocket();
     socket.emit('custom-room-toggle-media', { isMuted: nextMuted });
   };
 
-  const handleToggleVideo = async () => {
+  const handleToggleVideo = () => {
     const nextVideoOff = !isVideoOff;
     setIsVideoOff(nextVideoOff);
 
     if (localStreamRef.current) {
-      let videoTrack = localStreamRef.current.getVideoTracks()[0];
-      // If turning video on and track is missing or ended, dynamically re-acquire camera
-      if (!nextVideoOff && (!videoTrack || videoTrack.readyState === 'ended')) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' },
-            audio: false
-          });
-          const newTrack = stream.getVideoTracks()[0];
-          if (newTrack) {
-            if (videoTrack) localStreamRef.current.removeTrack(videoTrack);
-            localStreamRef.current.addTrack(newTrack);
-            videoTrack = newTrack;
-            peersRef.current.forEach((pc) => {
-              const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-              if (sender) sender.replaceTrack(newTrack);
-            });
-          }
-        } catch (err) {
-          console.warn('Re-acquiring camera failed:', err);
-        }
-      }
-      if (videoTrack) {
-        videoTrack.enabled = !nextVideoOff;
-      }
+      localStreamRef.current.getVideoTracks().forEach((track) => {
+        track.enabled = !nextVideoOff;
+      });
     }
 
     const socket = getSocket();
-    socket.emit('custom-room-toggle-media', { isVideoOff: nextVideoOff });
+    socket.emit('custom-room-toggle-media', { cameraOff: nextVideoOff });
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -737,13 +693,17 @@ export default function CustomRoomViewPage() {
                     <video
                       autoPlay
                       playsInline
-                      muted={isSelf} // Only mute self to avoid echo; remote audio plays aloud
+                      muted={isSelf}
                       ref={(el) => {
                         if (!el) return;
-                        if (isSelf && localStream) {
-                          if (el.srcObject !== localStream) el.srcObject = localStream;
-                        } else if (!isSelf && remoteStream) {
-                          if (el.srcObject !== remoteStream) el.srcObject = remoteStream;
+                        const targetStream = isSelf ? localStream : remoteStream;
+                        if (targetStream && el.srcObject !== targetStream) {
+                          el.srcObject = targetStream;
+                          el.play().catch(() => {
+                            // If audio policy blocks unmuted video playback, mute element and play frames
+                            el.muted = true;
+                            el.play().catch(() => {});
+                          });
                         }
                       }}
                       className={`absolute inset-0 w-full h-full object-cover ${isSelf ? 'mirror-video' : ''}`}

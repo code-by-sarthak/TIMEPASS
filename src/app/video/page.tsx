@@ -45,6 +45,12 @@ function VideoChatContent() {
   const { user, loading } = useAuth();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
+  // Filter preferences from URL query
+  const interests = searchParams.get('interests')?.split(',').filter(Boolean) || [];
+  const language = searchParams.get('language') || 'English';
+  const country = searchParams.get('country') || 'Global (Any)';
+  const requestedMode = searchParams.get('mode');
+
   // Call States
   const [callState, setCallState] = useState<CallState>('idle');
   const [partner, setPartner] = useState<MatchPartner | null>(null);
@@ -56,6 +62,8 @@ function VideoChatContent() {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [callMode, setCallMode] = useState<'video' | 'audio'>(requestedMode === 'audio' ? 'audio' : 'video');
+  const [layoutMode, setLayoutMode] = useState<'split' | 'pip'>('split');
   const [isPartnerMuted, setIsPartnerMuted] = useState(false);
   const [isPartnerVideoOff, setIsPartnerVideoOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -71,12 +79,6 @@ function VideoChatContent() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [friendAdded, setFriendAdded] = useState(false);
-
-  // Filter preferences from URL query
-  const interests = searchParams.get('interests')?.split(',').filter(Boolean) || [];
-  const language = searchParams.get('language') || 'English';
-  const country = searchParams.get('country') || 'Global (Any)';
-  const requestedMode = searchParams.get('mode');
 
   // Refs for instances
   const webrtcRef = useRef<WebRTCManager | null>(null);
@@ -456,25 +458,45 @@ function VideoChatContent() {
     router.push('/');
   };
 
-  // Media Toggle Handlers with Guaranteed Turn Off / Turn On
-  const handleToggleMic = async () => {
-    if (!webrtcRef.current) return;
-    const nowActive = await webrtcRef.current.toggleAudio();
-    const isNowMuted = !nowActive;
-    setIsMuted(isNowMuted);
-
+  // Media Toggle Handlers: Instant 1-Click Turn On or Off
+  const handleToggleMic = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (webrtcRef.current) {
+      webrtcRef.current.toggleAudio(!nextMuted);
+    }
     const socket = getSocket();
-    socket.emit('media-state-change', { micMuted: isNowMuted });
+    if (socket?.connected) {
+      socket.emit('media-state-change', { micMuted: nextMuted });
+    }
   };
 
-  const handleToggleVideo = async () => {
-    if (!webrtcRef.current) return;
-    const nowActive = await webrtcRef.current.toggleVideo();
-    const isNowOff = !nowActive;
-    setIsVideoOff(isNowOff);
+  const handleToggleVideo = () => {
+    const nextVideoOff = !isVideoOff;
+    setIsVideoOff(nextVideoOff);
+    if (webrtcRef.current) {
+      webrtcRef.current.toggleVideo(!nextVideoOff);
+    }
+    const socket = getSocket();
+    if (socket?.connected) {
+      socket.emit('media-state-change', { cameraOff: nextVideoOff });
+    }
+  };
+
+  // Switch between Video Call and Audio Call
+  const handleSwitchMode = (newMode: 'video' | 'audio') => {
+    setCallMode(newMode);
+    const nextVideoOff = newMode === 'audio';
+    setIsVideoOff(nextVideoOff);
+
+    if (webrtcRef.current) {
+      webrtcRef.current.toggleVideo(!nextVideoOff);
+    }
 
     const socket = getSocket();
-    socket.emit('media-state-change', { cameraOff: isNowOff });
+    if (socket?.connected) {
+      socket.emit('media-state-change', { cameraOff: nextVideoOff });
+    }
   };
 
   const handleSwitchCamera = async () => {
@@ -536,9 +558,9 @@ function VideoChatContent() {
       ref={containerRef}
       className="relative w-full min-h-screen h-[100dvh] bg-black overflow-hidden flex flex-col select-none"
     >
-      {/* Top Header Bar */}
-      <div className="absolute top-0 left-0 right-0 z-30 px-4 py-3 flex items-center justify-between pointer-events-none">
-        <div className="flex items-center gap-3 pointer-events-auto">
+      {/* Top Header Bar with Audio/Video Mode Selector & Layout Toggle */}
+      <div className="absolute top-0 left-0 right-0 z-30 px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between pointer-events-none">
+        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
           <button
             onClick={() => router.push('/')}
             className="p-2 rounded-xl glass-toolbar text-white hover:bg-white/10 transition-colors shadow"
@@ -546,30 +568,82 @@ function VideoChatContent() {
           >
             <Home className="w-4 h-4" />
           </button>
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full glass-toolbar text-xs font-bold text-white shadow">
+          <div className="hidden xs:flex items-center gap-1.5 px-3 py-1 rounded-full glass-toolbar text-xs font-bold text-white shadow">
             <span>TIME</span>
             <span className="gradient-text">PASS</span>
-            <span className="text-gray-400 font-normal">· Video</span>
           </div>
         </div>
 
-        {partner && callState === 'connected' && (
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {!friendAdded ? (
-              <button
-                onClick={handleAddFriend}
-                className="px-3 py-1.5 rounded-full glass-toolbar text-xs font-medium text-white hover:bg-brand-500/30 flex items-center gap-1.5 transition-colors shadow"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-brand-400" />
-                <span className="hidden sm:inline">Add Friend</span>
-              </button>
+        {/* PROMINENT AUDIO / VIDEO MODE SELECTOR (Both options clearly available) */}
+        <div className="flex items-center bg-black/70 backdrop-blur-xl rounded-2xl p-1 border border-white/15 pointer-events-auto shadow-2xl">
+          <button
+            type="button"
+            onClick={() => handleSwitchMode('video')}
+            className={`px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl font-black text-[11px] sm:text-xs flex items-center gap-1.5 transition-all ${
+              callMode === 'video'
+                ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/30'
+                : 'text-gray-400 hover:text-white'
+            }`}
+            title="Video Call Mode (Camera & Microphone Always On)"
+          >
+            <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-300" />
+            <span>Video Call</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSwitchMode('audio')}
+            className={`px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl font-black text-[11px] sm:text-xs flex items-center gap-1.5 transition-all ${
+              callMode === 'audio'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
+                : 'text-gray-400 hover:text-white'
+            }`}
+            title="Audio Call Mode (Voice-Only, Camera Paused)"
+          >
+            <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
+            <span>Audio Call</span>
+          </button>
+        </div>
+
+        {/* Right Header Actions: Layout Switcher & Add Friend */}
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+          {/* Layout Toggle: Split View vs Focus PiP View */}
+          <button
+            type="button"
+            onClick={() => setLayoutMode(layoutMode === 'split' ? 'pip' : 'split')}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl glass-toolbar text-white text-xs font-bold hover:bg-white/10 transition-colors flex items-center gap-1 shadow"
+            title={layoutMode === 'split' ? 'Switch to Focus/PiP View' : 'Switch to Equal Split View'}
+          >
+            {layoutMode === 'split' ? (
+              <>
+                <Maximize2 className="w-3.5 h-3.5 text-pink-400" />
+                <span className="hidden md:inline">Focus</span>
+              </>
             ) : (
-              <span className="px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
-                Friend Added!
-              </span>
+              <>
+                <Minimize2 className="w-3.5 h-3.5 text-pink-400" />
+                <span className="hidden md:inline">Split</span>
+              </>
             )}
-          </div>
-        )}
+          </button>
+
+          {partner && callState === 'connected' && (
+            <div>
+              {!friendAdded ? (
+                <button
+                  onClick={handleAddFriend}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-full glass-toolbar text-xs font-medium text-white hover:bg-pink-500/30 flex items-center gap-1.5 transition-colors shadow"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-pink-400" />
+                  <span className="hidden sm:inline">Add Friend</span>
+                </button>
+              ) : (
+                <span className="px-2.5 sm:px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
+                  Friend Added!
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Live System Announcement Banner */}
@@ -592,154 +666,133 @@ function VideoChatContent() {
         </div>
       )}
 
-      {/* Main Calling Stage */}
-      <div className="flex-1 relative flex overflow-hidden">
-        {/* Video Canvas Area */}
-        <div className="flex-1 relative flex flex-col md:flex-row p-3 gap-3 items-center justify-center">
-          {/* Permission Denied / Camera Fallback UI */}
-          {callState === 'permission_denied' && (
-            <div className="max-w-md w-full p-6 sm:p-7 glass-panel rounded-3xl text-center border border-pink-500/30 shadow-[0_0_50px_rgba(236,72,153,0.18)] animate-in fade-in zoom-in-95 duration-300 mx-3">
-              {/* Animated Icon Badge */}
-              <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-pink-500/20 to-purple-500/20 border border-pink-500/30 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-pink-500/10">
-                <Camera className="w-7 h-7 sm:w-8 sm:h-8 text-pink-400" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center text-[10px] font-black shadow">
-                  !
-                </span>
-              </div>
-
-              <h3 className="text-xl sm:text-2xl font-black text-white mb-2 tracking-tight">
-                Camera Permission Needed
-              </h3>
-              
-              <p className="text-xs sm:text-sm text-gray-300 leading-relaxed mb-4 max-w-sm mx-auto">
-                {errorMessage || 'Camera access was denied or not detected. No worries! You can chat right now in Live Avatar Mode.'}
-              </p>
-
-              {/* Context helper notice */}
-              <div className="mb-5 p-3 rounded-2xl bg-white/5 border border-white/10 text-left text-xs text-gray-300 space-y-1.5">
-                <div className="flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-white">Live Avatar Mode:</strong> Connect instantly with animated avatar, live voice, reactions & Bollywood music without sharing your camera!
-                  </span>
-                </div>
-                <div className="flex items-start gap-2 text-[11px] text-gray-400">
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                  <span>
-                    To allow real camera: Tap the 🔒 or site settings icon in your browser address bar &gt; Allow Camera, then click <strong>Try Camera Again</strong>.
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2.5">
-                {/* PRIMARY ACTION: Avatar Mode (Instant Match) */}
-                <button
-                  onClick={handleContinueAvatarMode}
-                  className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:from-pink-400 hover:to-indigo-500 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl shadow-pink-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  <Sparkles className="w-4 h-4 text-yellow-300 animate-spin" />
-                  <span>Continue in Avatar Mode (Instant Match)</span>
-                </button>
-
-                {/* SECONDARY ROW */}
-                <div className="grid grid-cols-2 gap-2 mt-0.5">
-                  <button
-                    onClick={startVideoSession}
-                    className="py-2.5 px-3 rounded-xl glass-toolbar border border-white/10 hover:bg-white/10 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                  >
-                    <RotateCw className="w-3.5 h-3.5 text-pink-400" />
-                    <span>Try Camera Again</span>
-                  </button>
-
-                  <button
-                    onClick={() => router.push('/rooms')}
-                    className="py-2.5 px-3 rounded-xl bg-pink-500/15 border border-pink-500/30 hover:bg-pink-500/25 text-pink-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                  >
-                    <Users className="w-3.5 h-3.5 text-pink-400" />
-                    <span>8-Member Rooms</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Searching / Matchmaking Radar */}
-          {callState === 'searching' && (
-            <MatchingRadar
-              mode="video"
-              interests={interests}
-              onCancel={() => router.push('/')}
-            />
-          )}
-
-          {/* Disconnected State UI */}
-          {callState === 'disconnected' && (
-            <div className="max-w-sm p-6 glass-panel rounded-2xl text-center border border-white/10 animate-in fade-in">
-              <h3 className="text-lg font-bold text-white mb-1">Partner Disconnected</h3>
-              <p className="text-xs text-gray-400 mb-6">The other chatter left the conversation.</p>
-              <button
-                onClick={handleNext}
-                className="w-full py-3 rounded-xl gradient-button text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-brand-500/30"
-              >
-                <span>Find Next Person</span>
-                <SkipForward className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Active Call Layout: Remote Video Centerstage + Local Video Picture-in-Picture */}
-          {(callState === 'connected' || callState === 'connecting') && (
-            <div className="relative w-full h-full flex flex-col md:flex-row gap-3">
-              {/* Remote User Video (Center Stage) */}
-              <div className="flex-1 w-full h-full relative rounded-2xl overflow-hidden">
+      {/* Main Calling Stage: Symmetrical, Balanced Dual-Feed Layout with Proper Alignment */}
+      <div className="flex-1 relative flex overflow-hidden pt-12 sm:pt-14 pb-20 sm:pb-24 px-2 sm:px-4">
+        {layoutMode === 'split' ? (
+          /* PROPER BALANCED SPLIT ALIGNMENT: 50% Stranger (Left/Top) + 50% You (Right/Bottom) */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-4 w-full h-full max-w-7xl mx-auto">
+            {/* Box 1: Stranger Feed / Radar State */}
+            <div className="relative w-full h-full min-h-[220px] rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-neutral-950 flex items-center justify-center">
+              {callState === 'connected' || callState === 'connecting' ? (
                 <VideoPlayer
                   stream={remoteStream}
                   isLocal={false}
                   isMuted={isPartnerMuted}
-                  isVideoOff={isPartnerVideoOff}
-                  displayName={partner?.displayName || 'Connecting...'}
+                  isVideoOff={isPartnerVideoOff || callMode === 'audio'}
+                  displayName={partner?.displayName || 'Connecting with Stranger...'}
                   avatarUrl={partner?.avatarUrl}
                   gender={partner?.gender}
                   region={partner?.region}
                   country={partner?.country}
                   qualityBadge={connectionQuality}
+                  callMode={callMode}
                 />
-              </div>
-
-              {/* Local User Preview (Picture-in-Picture / Mobile Native Top-Right Floating) */}
-              <div className="absolute top-14 sm:top-auto sm:bottom-24 right-2.5 sm:right-6 w-24 xs:w-28 sm:w-48 md:w-56 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 z-20 transition-all hover:scale-105 group/pip backdrop-blur-md">
-                <VideoPlayer
-                  stream={localStream}
-                  isLocal={true}
-                  isMuted={isMuted}
-                  isVideoOff={isVideoOff}
-                  displayName={user?.displayName || 'You'}
-                  avatarUrl={user?.avatarUrl}
-                  gender={user?.profile?.gender}
-                  region={user?.profile?.region}
-                />
-                {isAvatarMode && (
-                  <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-auto z-10">
-                    <span className="px-1.5 py-0.5 rounded-full bg-pink-500/80 backdrop-blur-md text-[9px] font-bold text-white shadow flex items-center gap-1">
-                      <span>🎭</span>
-                      <span className="hidden xs:inline">Avatar</span>
-                    </span>
-                    <button
-                      onClick={handleSwitchToRealCamera}
-                      disabled={isSwitchingCamera}
-                      className="px-2 py-0.5 rounded-full bg-black/70 hover:bg-black/95 backdrop-blur-md text-[9px] font-bold text-white border border-white/20 transition-all flex items-center gap-1 shadow hover:border-pink-500/50"
-                      title="Switch to Real Webcam"
-                    >
-                      <Camera className="w-2.5 h-2.5 text-pink-400" />
-                      <span>{isSwitchingCamera ? 'Connecting...' : 'Camera'}</span>
-                    </button>
+              ) : callState === 'searching' ? (
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-purple-950/40 via-neutral-950 to-pink-950/40">
+                  <div className="relative w-24 h-24 sm:w-32 sm:h-32 flex items-center justify-center mb-3 sm:mb-4">
+                    <div className="absolute inset-0 rounded-full border-2 border-pink-500/30 animate-ping" />
+                    <div className="absolute inset-2 rounded-full border border-purple-500/40 animate-pulse" />
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-pink-500/30">
+                      {callMode === 'video' ? <Video className="w-8 h-8 sm:w-10 sm:h-10" /> : <Mic className="w-8 h-8 sm:w-10 sm:h-10" />}
+                    </div>
                   </div>
-                )}
-              </div>
+                  <h4 className="text-sm sm:text-base font-black text-white mb-1">
+                    {callMode === 'video' ? 'Finding a Video Partner...' : 'Finding a Voice Partner...'}
+                  </h4>
+                  <p className="text-[11px] sm:text-xs text-gray-400 max-w-xs mb-3">
+                    Matching you with genuine chatters based on your preferences
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-xs">
+                    <span className="px-2.5 py-0.5 rounded-full bg-pink-500/15 border border-pink-500/30 text-[10px] font-bold text-pink-300">
+                      ⚡ Instant Match
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-[10px] font-bold text-purple-300">
+                      {callMode === 'video' ? '📹 Video Enabled' : '🎙️ Voice Only'}
+                    </span>
+                  </div>
+                </div>
+              ) : callState === 'disconnected' ? (
+                <div className="max-w-xs p-6 rounded-2xl text-center">
+                  <h3 className="text-base font-black text-white mb-1">Partner Left</h3>
+                  <p className="text-xs text-gray-400 mb-4">The other chatter disconnected.</p>
+                  <button
+                    onClick={handleNext}
+                    className="w-full py-2.5 px-4 rounded-xl gradient-button text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-pink-500/30"
+                  >
+                    <span>Find Next Person</span>
+                    <SkipForward className="w-4 h-4 fill-current" />
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center p-6 text-gray-400 text-xs">
+                  <p>Ready to connect</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+
+            {/* Box 2: Your Live Video Feed (ALWAYS ON in Video Call!) */}
+            <div className="relative w-full h-full min-h-[220px] rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-pink-500/30 shadow-2xl bg-neutral-950 flex items-center justify-center">
+              <VideoPlayer
+                stream={localStream}
+                isLocal={true}
+                isMuted={isMuted}
+                isVideoOff={isVideoOff || callMode === 'audio'}
+                displayName={user?.displayName ? `${user.displayName} (You)` : 'You'}
+                avatarUrl={user?.avatarUrl}
+                gender={user?.profile?.gender}
+                region={user?.profile?.region}
+                callMode={callMode}
+              />
+              {isAvatarMode && callMode === 'video' && (
+                <div className="absolute bottom-3 right-3 flex items-center gap-1 z-20">
+                  <button
+                    onClick={handleSwitchToRealCamera}
+                    disabled={isSwitchingCamera}
+                    className="px-2.5 py-1 rounded-xl bg-black/80 hover:bg-black backdrop-blur-md text-[10px] font-bold text-white border border-pink-500/40 transition-all flex items-center gap-1.5 shadow-lg"
+                    title="Switch to Real Camera"
+                  >
+                    <Camera className="w-3 h-3 text-pink-400" />
+                    <span>{isSwitchingCamera ? 'Connecting...' : 'Real Camera'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* FOCUS / THEATER VIEW: Large Remote Stage + Floating Local PiP */
+          <div className="relative w-full h-full flex flex-col items-center justify-center">
+            <div className="w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-neutral-950">
+              <VideoPlayer
+                stream={remoteStream}
+                isLocal={false}
+                isMuted={isPartnerMuted}
+                isVideoOff={isPartnerVideoOff || callMode === 'audio'}
+                displayName={partner?.displayName || (callState === 'searching' ? 'Searching...' : 'Stranger')}
+                avatarUrl={partner?.avatarUrl}
+                gender={partner?.gender}
+                region={partner?.region}
+                country={partner?.country}
+                qualityBadge={connectionQuality}
+                callMode={callMode}
+              />
+            </div>
+
+            {/* Floating PiP (Local Camera) */}
+            <div className="absolute top-4 sm:top-auto sm:bottom-4 right-3 sm:right-6 w-28 xs:w-36 sm:w-56 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-pink-500/40 z-20 backdrop-blur-md hover:scale-105 transition-all">
+              <VideoPlayer
+                stream={localStream}
+                isLocal={true}
+                isMuted={isMuted}
+                isVideoOff={isVideoOff || callMode === 'audio'}
+                displayName={user?.displayName ? `${user.displayName} (You)` : 'You'}
+                avatarUrl={user?.avatarUrl}
+                gender={user?.profile?.gender}
+                region={user?.profile?.region}
+                callMode={callMode}
+              />
+            </div>
+          </div>
+        )}
 
         {/* In-Call Text Chat Drawer */}
         <ChatDrawer

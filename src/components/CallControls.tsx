@@ -51,32 +51,32 @@ export default function CallControls({
 }: CallControlsProps) {
   return (
     <div className="flex items-center justify-center gap-1 xs:gap-1.5 sm:gap-2.5 p-1.5 sm:p-2.5 glass-toolbar rounded-2xl max-w-[calc(100vw-16px)] mx-auto transition-all shadow-2xl">
-      {/* Microphone Toggle */}
+      {/* Microphone Toggle (Instant 1-Click On / Off) */}
       <button
         type="button"
         onClick={onToggleMic}
-        className={`p-2 sm:p-2.5 rounded-xl transition-all ${
+        className={`p-2 sm:p-2.5 rounded-xl transition-all flex items-center justify-center ${
           isMuted
-            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-            : 'bg-white/5 hover:bg-white/10 text-white border border-white/5'
+            ? 'bg-red-500/25 text-red-400 border border-red-500/40 shadow-md shadow-red-500/20 scale-95'
+            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
         }`}
-        title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+        title={isMuted ? 'Turn Audio ON (Unmute)' : 'Turn Audio OFF (Mute)'}
       >
-        {isMuted ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
+        {isMuted ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-300" />}
       </button>
 
-      {/* Camera Toggle */}
+      {/* Camera Toggle (Instant 1-Click On / Off) */}
       <button
         type="button"
         onClick={onToggleVideo}
-        className={`p-2 sm:p-2.5 rounded-xl transition-all ${
+        className={`p-2 sm:p-2.5 rounded-xl transition-all flex items-center justify-center ${
           isVideoOff
-            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-            : 'bg-white/5 hover:bg-white/10 text-white border border-white/5'
+            ? 'bg-amber-500/25 text-amber-400 border border-amber-500/40 shadow-md shadow-amber-500/20 scale-95'
+            : 'bg-pink-500/20 text-pink-400 border border-pink-500/30 hover:bg-pink-500/30'
         }`}
-        title={isVideoOff ? 'Turn Video On' : 'Pause Video'}
+        title={isVideoOff ? 'Turn Video ON' : 'Turn Video OFF'}
       >
-        {isVideoOff ? <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Video className="w-4 h-4 sm:w-5 sm:h-5" />}
+        {isVideoOff ? <VideoOff className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" /> : <Video className="w-4 h-4 sm:w-5 sm:h-5 text-pink-300" />}
       </button>
 
       {/* Switch Camera */}

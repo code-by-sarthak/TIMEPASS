@@ -228,78 +228,30 @@ export class WebRTCManager {
     }
   }
 
-  // 7. Toggle Microphone Mute (With Hardware Re-Acquisition on Unmute)
-  public async toggleAudio(forceEnabled?: boolean): Promise<boolean> {
+  // 7. Toggle Microphone Mute (Instant zero-latency on/off)
+  public toggleAudio(forceEnabled?: boolean): boolean {
     if (!this.localStream) return false;
-    let audioTrack = this.localStream.getAudioTracks()[0];
+    const audioTracks = this.localStream.getAudioTracks();
+    if (audioTracks.length === 0) return false;
 
-    // If track is missing or ended and we are trying to enable audio, dynamically re-acquire mic
-    if ((!audioTrack || audioTrack.readyState === 'ended') && forceEnabled !== false) {
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-            video: false
-          });
-          const newTrack = stream.getAudioTracks()[0];
-          if (newTrack) {
-            if (audioTrack) this.localStream.removeTrack(audioTrack);
-            this.localStream.addTrack(newTrack);
-            audioTrack = newTrack;
-            if (this.peerConnection) {
-              const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'audio');
-              if (sender) sender.replaceTrack(newTrack);
-            }
-          }
-        } catch (err) {
-          console.warn('Re-acquiring mic failed:', err);
-        }
-      }
-    }
-
-    if (audioTrack) {
-      const nextEnabled = forceEnabled !== undefined ? forceEnabled : !audioTrack.enabled;
-      audioTrack.enabled = nextEnabled;
-      return nextEnabled;
-    }
-    return false;
+    const nextEnabled = forceEnabled !== undefined ? forceEnabled : !audioTracks[0].enabled;
+    audioTracks.forEach((track) => {
+      track.enabled = nextEnabled;
+    });
+    return nextEnabled;
   }
 
-  // 8. Toggle Camera On/Off (With Hardware Re-Acquisition on Turn On)
-  public async toggleVideo(forceEnabled?: boolean): Promise<boolean> {
+  // 8. Toggle Camera On/Off (Instant zero-latency on/off)
+  public toggleVideo(forceEnabled?: boolean): boolean {
     if (!this.localStream) return false;
-    let videoTrack = this.localStream.getVideoTracks()[0];
+    const videoTracks = this.localStream.getVideoTracks();
+    if (videoTracks.length === 0) return false;
 
-    // If track is missing or ended and we are trying to enable video, dynamically re-acquire camera
-    if ((!videoTrack || videoTrack.readyState === 'ended') && forceEnabled !== false) {
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: this.currentFacingMode },
-            audio: false
-          });
-          const newTrack = stream.getVideoTracks()[0];
-          if (newTrack) {
-            if (videoTrack) this.localStream.removeTrack(videoTrack);
-            this.localStream.addTrack(newTrack);
-            videoTrack = newTrack;
-            if (this.peerConnection) {
-              const sender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
-              if (sender) sender.replaceTrack(newTrack);
-            }
-          }
-        } catch (err) {
-          console.warn('Re-acquiring camera failed:', err);
-        }
-      }
-    }
-
-    if (videoTrack) {
-      const nextEnabled = forceEnabled !== undefined ? forceEnabled : !videoTrack.enabled;
-      videoTrack.enabled = nextEnabled;
-      return nextEnabled;
-    }
-    return false;
+    const nextEnabled = forceEnabled !== undefined ? forceEnabled : !videoTracks[0].enabled;
+    videoTracks.forEach((track) => {
+      track.enabled = nextEnabled;
+    });
+    return nextEnabled;
   }
 
   // 9. Switch Camera (Facing Mode)
