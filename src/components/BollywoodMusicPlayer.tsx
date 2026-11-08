@@ -10,7 +10,8 @@ import {
   Sparkles, 
   Tv,
   Heart,
-  Music2
+  Music2,
+  Headphones
 } from 'lucide-react';
 import { useMusic } from '@/lib/music-context';
 
@@ -26,7 +27,8 @@ export default function BollywoodMusicPlayer({ compact = false }: { compact?: bo
     togglePlay, 
     nextTrack, 
     setPlayerMode,
-    setIsFloatingMinimized 
+    setIsFloatingMinimized,
+    setIsDockOpen
   } = useMusic();
 
   return (
@@ -135,25 +137,53 @@ export default function BollywoodMusicPlayer({ compact = false }: { compact?: bo
             <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
-          {/* Video Player Dock View/Hide Toggle */}
-          <button
-            onClick={() => {
-              if (!isPlaying) {
-                togglePlay();
-              } else {
-                setIsFloatingMinimized(!isFloatingMinimized);
-              }
-            }}
-            className={`px-2 py-1 sm:py-1.5 rounded-xl font-bold text-[10px] sm:text-xs transition-colors flex items-center gap-1 ${
-              isPlaying && !isFloatingMinimized 
-                ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow' 
-                : 'bg-pink-500/20 text-pink-300 border border-pink-500/40 hover:bg-pink-500/30'
-            }`}
-            title={isPlaying && !isFloatingMinimized ? 'Minimize Video Dock' : 'Watch Official Music Video'}
-          >
-            <Tv className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            <span>{isPlaying && !isFloatingMinimized ? '🎬 Hide' : '🎬 Video'}</span>
-          </button>
+          {/* DUAL MODE SELECTOR: Audio & Video Sections */}
+          <div className="flex items-center bg-black/60 rounded-xl p-1 border border-white/10 shrink-0 gap-1">
+            {/* 1. AUDIO SECTION */}
+            <button
+              type="button"
+              onClick={() => {
+                setPlayerMode('song');
+                setIsFloatingMinimized(true);
+                if (!isPlaying) togglePlay();
+              }}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-lg font-black text-[10px] sm:text-xs transition-all flex items-center gap-1.5 ${
+                isFloatingMinimized || playerMode === 'song'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25 scale-102 ring-1 ring-emerald-400/50'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+              title="Audio Mode (Listen to Music in background)"
+            >
+              <Headphones className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-200" />
+              <span>Audio</span>
+              {(isFloatingMinimized || playerMode === 'song') && isPlaying && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+              )}
+            </button>
+
+            {/* 2. VIDEO SECTION */}
+            <button
+              type="button"
+              onClick={() => {
+                setPlayerMode('video');
+                setIsFloatingMinimized(false);
+                setIsDockOpen(true);
+                if (!isPlaying) togglePlay();
+              }}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-lg font-black text-[10px] sm:text-xs transition-all flex items-center gap-1.5 ${
+                !isFloatingMinimized && playerMode === 'video'
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md shadow-pink-500/25 scale-102 ring-1 ring-pink-400/50'
+                  : 'text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+              title="Video Mode (Watch Official Music Video)"
+            >
+              <Tv className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-200" />
+              <span>Video</span>
+              {!isFloatingMinimized && playerMode === 'video' && isPlaying && (
+                <span className="w-1.5 h-1.5 rounded-full bg-pink-300 animate-pulse" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

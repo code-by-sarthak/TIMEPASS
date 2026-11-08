@@ -14,7 +14,8 @@ import {
   X, 
   Tv,
   Music2,
-  ExternalLink
+  ExternalLink,
+  Headphones
 } from 'lucide-react';
 
 export interface BollywoodOriginalTrack {
@@ -383,9 +384,45 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
+                {/* Audio & Video Section Switcher */}
+                <div className="flex items-center bg-black/60 rounded-xl p-0.5 border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlayerMode('song');
+                      setIsFloatingMinimized(true);
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-[9px] font-bold transition-all flex items-center gap-1 ${
+                      playerMode === 'song'
+                        ? 'bg-emerald-500 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Switch to Audio Mode"
+                  >
+                    <Headphones className="w-2.5 h-2.5" />
+                    <span>Audio</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlayerMode('video');
+                      setIsFloatingMinimized(false);
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-[9px] font-bold transition-all flex items-center gap-1 ${
+                      playerMode === 'video'
+                        ? 'bg-pink-500 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Video Mode"
+                  >
+                    <Tv className="w-2.5 h-2.5" />
+                    <span>Video</span>
+                  </button>
+                </div>
+
+                <span className="hidden xs:flex px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black bg-pink-500/20 text-pink-300 border border-pink-500/30 items-center gap-1">
                   <Sparkles className="w-2.5 h-2.5" />
-                  <span>BOLLYWOOD HIT</span>
+                  <span>HIT</span>
                 </span>
 
                 <button
@@ -520,6 +557,43 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                   <p className="text-[11px] font-black text-white truncate max-w-[85px] xs:max-w-[120px]">{currentTrack.title}</p>
                   <p className="text-[9px] text-pink-300 truncate max-w-[85px] xs:max-w-[120px]">{currentTrack.movie}</p>
                 </div>
+              </div>
+
+              {/* DUAL MODE SECTION PILL: Audio & Video */}
+              <div className="flex items-center bg-black/60 rounded-xl p-0.5 border border-white/10 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlayerMode('song');
+                    setIsFloatingMinimized(true);
+                  }}
+                  className={`px-1.5 py-0.5 rounded-lg text-[9px] font-bold flex items-center gap-1 transition-all ${
+                    playerMode === 'song'
+                      ? 'bg-emerald-500 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                  title="Audio Mode Active"
+                >
+                  <Headphones className="w-2.5 h-2.5" />
+                  <span>Audio</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlayerMode('video');
+                    setIsFloatingMinimized(false);
+                    setIsDockOpen(true);
+                  }}
+                  className={`px-1.5 py-0.5 rounded-lg text-[9px] font-bold flex items-center gap-1 transition-all ${
+                    playerMode === 'video' && !isFloatingMinimized
+                      ? 'bg-pink-500 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Switch to Video Mode"
+                >
+                  <Tv className="w-2.5 h-2.5 text-pink-300" />
+                  <span>Video</span>
+                </button>
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
