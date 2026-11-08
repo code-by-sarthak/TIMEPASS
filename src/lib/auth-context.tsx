@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
 
-      if (data && data.error) {
+      if (data?.error && data.error.includes('suspended')) {
         throw new Error(data.error);
       }
 

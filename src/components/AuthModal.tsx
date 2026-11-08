@@ -105,7 +105,7 @@ export default function AuthModal({
     if (onSuccess) onSuccess();
   };
 
-  // 1. Google One-Click Login (Try real popup, or seamlessly fallback without error)
+  // 1. Google One-Click Login (Try real popup, or smoothly fall back to email input)
   const handleGoogleSignIn = async () => {
     setError(null);
     setLoading(true);
@@ -116,12 +116,14 @@ export default function AuthModal({
         return;
       }
     } catch (err: unknown) {
-      console.warn('Google popup restricted by browser origin:', err);
-      // If Gmail address is already entered, seamlessly sign in with it immediately!
-      if (gmailInput.trim().includes('@')) {
+      console.warn('Google popup restricted by browser origin or domain:', err);
+      // If Gmail address is already entered or remembered, seamlessly sign in with it immediately!
+      const emailToUse = gmailInput.trim() || (typeof window !== 'undefined' ? localStorage.getItem('timepass_saved_gmail') || '' : '');
+      if (emailToUse) {
         try {
+          const clean = emailToUse.includes('@') ? emailToUse : `${emailToUse}@gmail.com`;
           const directSuccess = await loginWithGmail(
-            gmailInput.trim(),
+            clean,
             displayName.trim() || undefined,
             { gender, region }
           );
@@ -133,7 +135,8 @@ export default function AuthModal({
           // ignore
         }
       }
-      // Gently focus input without throwing an error banner
+      
+      setError('Enter your Gmail address below to sign in instantly with 1-click.');
       const inputEl = document.getElementById('gmail-input-field') as HTMLInputElement | null;
       inputEl?.focus();
     } finally {
@@ -142,26 +145,32 @@ export default function AuthModal({
   };
 
   // 2. Direct Gmail / Google Account Sign-In (100% Reliable 1-Click)
-  const handleGmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGmailSignIn = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!ageConfirmed) {
       setError('You must confirm you are at least 18 years old to join.');
       return;
     }
-    if (!gmailInput.trim() || !gmailInput.includes('@')) {
-      setError('Please enter a valid Gmail address (e.g. yourname@gmail.com).');
+
+    const rawInput = gmailInput.trim();
+    if (!rawInput) {
+      // If empty, trigger Google OAuth popup
+      await handleGoogleSignIn();
       return;
     }
+
+    // Auto-complete @gmail.com if user only typed their username
+    const cleanEmail = rawInput.includes('@') ? rawInput.toLowerCase() : `${rawInput.toLowerCase()}@gmail.com`;
 
     setError(null);
     setLoading(true);
     try {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('timepass_saved_gmail', gmailInput.trim());
+        localStorage.setItem('timepass_saved_gmail', cleanEmail);
         if (displayName.trim()) localStorage.setItem('timepass_saved_name', displayName.trim());
       }
       const success = await loginWithGmail(
-        gmailInput.trim(), 
+        cleanEmail, 
         displayName.trim() || undefined, 
         { gender, region }
       );
@@ -438,11 +447,11 @@ export default function AuthModal({
               {/* Primary 1-Click Google Sign In Button */}
               <button
                 type="submit"
-                disabled={loading || !gmailInput.includes('@')}
-                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 hover:from-brand-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-indigo-500/30 hover:scale-102 active:scale-98 transition-all disabled:opacity-50"
+                disabled={loading}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 hover:from-brand-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-indigo-500/30 hover:scale-102 active:scale-98 transition-all disabled:opacity-50 cursor-pointer"
               >
                 <Chrome className="w-4 h-4 text-white" />
-                <span>{loading ? 'Connecting with Google...' : 'Continue with Google Account'}</span>
+                <span>{loading ? 'Connecting...' : 'Continue with Google / Gmail'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -451,9 +460,10 @@ export default function AuthModal({
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="text-[11px] text-gray-400 hover:text-white transition-colors underline flex items-center justify-center gap-1.5 mx-auto"
+                  className="text-xs text-pink-400 hover:text-pink-300 transition-colors flex items-center justify-center gap-1.5 mx-auto font-bold"
                 >
-                  <span>Or try Google One-Click OAuth Popup →</span>
+                  <Chrome className="w-3.5 h-3.5" />
+                  <span>Try Google One-Click OAuth Popup →</span>
                 </button>
               </div>
             </form>
