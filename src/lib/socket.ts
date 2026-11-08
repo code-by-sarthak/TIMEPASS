@@ -9,7 +9,11 @@ export function getSocket(userId?: string, displayName?: string): Socket {
   }
 
   if (!socket || !socket.connected) {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || window.location.origin;
+    // Auto-detect production vs local environment so Vercel deployments connect cleanly
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const socketUrl = !isLocalhost && typeof window !== 'undefined' 
+      ? window.location.origin 
+      : (process.env.NEXT_PUBLIC_SOCKET_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'));
 
     socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
