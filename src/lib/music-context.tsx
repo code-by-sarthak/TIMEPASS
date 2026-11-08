@@ -151,7 +151,7 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
   }
 ];
 
-export type MusicPlayerMode = 'song' | 'video';
+export type MusicPlayerMode = 'video' | 'song';
 
 interface MusicContextType {
   tracks: BollywoodOriginalTrack[];
@@ -161,6 +161,7 @@ interface MusicContextType {
   isMuted: boolean;
   playerMode: MusicPlayerMode;
   isFloatingMinimized: boolean;
+  isDockOpen: boolean;
   currentTime: number;
   duration: number;
   playTrack: (index: number) => void;
@@ -171,6 +172,7 @@ interface MusicContextType {
   seek: (time: number) => void;
   setPlayerMode: (mode: MusicPlayerMode) => void;
   setIsFloatingMinimized: (min: boolean) => void;
+  setIsDockOpen: (open: boolean) => void;
 }
 
 const MusicContext = createContext<MusicContextType | null>(null);
@@ -187,41 +189,31 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [playerMode, setPlayerMode] = useState<MusicPlayerMode>('song');
+  const [playerMode, setPlayerMode] = useState<MusicPlayerMode>('video');
   const [isFloatingMinimized, setIsFloatingMinimized] = useState(false);
+  const [isDockOpen, setIsDockOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(75);
+  const [duration, setDuration] = useState(240);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playedHistoryRef = useRef<number[]>([0]);
 
   const currentTrack = ORIGINAL_BOLLYWOOD_HITS[currentTrackIndex];
   const isCallingPage = pathname === '/video' || pathname?.startsWith('/rooms/');
 
-  // Low-level direct play execution guaranteed on direct user gesture
-  const executePlayAudio = useCallback((track: BollywoodOriginalTrack) => {
-    if (!audioRef.current) return;
+  // Send command safely to YouTube iframe
+  const sendYouTubeCommand = useCallback((func: string, args: any[] = []) => {
     try {
-      const audio = audioRef.current;
-      audio.src = track.audioUrl;
-      audio.volume = 1.0;
-      audio.muted = isMuted;
-      audio.load();
-      const p = audio.play();
-      if (p !== undefined) {
-        p.then(() => {
-          setIsPlaying(true);
-        }).catch((err) => {
-          console.warn('Audio play request handled:', err);
-          setIsPlaying(true);
-        });
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func, args }),
+          '*'
+        );
       }
-    } catch (err) {
-      console.warn('executePlayAudio error:', err);
-      setIsPlaying(true);
+    } catch (e) {
+      console.warn('YouTube postMessage error:', e);
     }
-  }, [isMuted]);
+  }, []);
 
   // Advance to next track without immediate repeats ("one song after another go on")
   const nextTrack = useCallback(() => {
@@ -233,108 +225,102 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     }
     playedHistoryRef.current.push(nextIdx);
     setCurrentTrackIndex(nextIdx);
-    const nextSong = ORIGINAL_BOLLYWOOD_HITS[nextIdx];
-    if (playerMode === 'song') {
-      executePlayAudio(nextSong);
-    }
     setIsPlaying(true);
-  }, [playerMode, executePlayAudio]);
+    setIsDockOpen(true);
+    const nextSong = ORIGINAL_BOLLYWOOD_HITS[nextIdx];
+    sendYouTubeCommand('loadVideoById', [nextSong.youtubeId]);
+  }, [sendYouTubeCommand]);
 
   const prevTrack = useCallback(() => {
     const prevIdx = (currentTrackIndex - 1 + ORIGINAL_BOLLYWOOD_HITS.length) % ORIGINAL_BOLLYWOOD_HITS.length;
     setCurrentTrackIndex(prevIdx);
-    const prevSong = ORIGINAL_BOLLYWOOD_HITS[prevIdx];
-    if (playerMode === 'song') {
-      executePlayAudio(prevSong);
-    }
     setIsPlaying(true);
-  }, [currentTrackIndex, playerMode, executePlayAudio]);
+    setIsDockOpen(true);
+    const prevSong = ORIGINAL_BOLLYWOOD_HITS[prevIdx];
+    sendYouTubeCommand('loadVideoById', [prevSong.youtubeId]);
+  }, [currentTrackIndex, sendYouTubeCommand]);
 
   const playTrack = useCallback((index: number) => {
     if (index >= 0 && index < ORIGINAL_BOLLYWOOD_HITS.length) {
       setCurrentTrackIndex(index);
       playedHistoryRef.current.push(index);
-      const targetSong = ORIGINAL_BOLLYWOOD_HITS[index];
-      if (playerMode === 'song') {
-        executePlayAudio(targetSong);
-      }
       setIsPlaying(true);
+      setIsDockOpen(true);
+      setIsFloatingMinimized(false);
+      const targetSong = ORIGINAL_BOLLYWOOD_HITS[index];
+      sendYouTubeCommand('loadVideoById', [targetSong.youtubeId]);
     }
-  }, [playerMode, executePlayAudio]);
+  }, [sendYouTubeCommand]);
 
   // Synchronous, gesture-compliant Play / Pause handler
   const togglePlay = useCallback(() => {
     if (isPlaying) {
-      if (playerMode === 'song') {
-        audioRef.current?.pause();
-      } else {
-        try {
-          if (iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-          }
-        } catch {}
-      }
+      sendYouTubeCommand('pauseVideo');
       setIsPlaying(false);
     } else {
-      if (playerMode === 'song') {
-        executePlayAudio(currentTrack);
-      } else {
-        try {
-          if (iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-          }
-        } catch {}
-      }
       setIsPlaying(true);
+      setIsDockOpen(true);
+      setIsFloatingMinimized(false);
+      sendYouTubeCommand('playVideo');
     }
-  }, [isPlaying, playerMode, currentTrack, executePlayAudio]);
+  }, [isPlaying, sendYouTubeCommand]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const nextMuted = !prev;
-      if (audioRef.current) {
-        audioRef.current.muted = nextMuted;
-      }
-      try {
-        if (iframeRef.current?.contentWindow) {
-          const command = nextMuted 
-            ? '{"event":"command","func":"mute","args":""}'
-            : '{"event":"command","func":"unMute","args":""}';
-          iframeRef.current.contentWindow.postMessage(command, '*');
-        }
-      } catch {}
+      sendYouTubeCommand(nextMuted ? 'mute' : 'unMute');
       return nextMuted;
     });
-  }, []);
+  }, [sendYouTubeCommand]);
 
   const seek = useCallback((time: number) => {
-    if (audioRef.current && isFinite(time)) {
-      audioRef.current.currentTime = time;
+    if (isFinite(time)) {
+      sendYouTubeCommand('seekTo', [time, true]);
       setCurrentTime(time);
     }
-  }, []);
+  }, [sendYouTubeCommand]);
 
   const handleSetPlayerMode = useCallback((mode: MusicPlayerMode) => {
     setPlayerMode(mode);
-    if (mode === 'video') {
-      audioRef.current?.pause();
-    } else {
-      if (isPlaying) {
-        executePlayAudio(currentTrack);
-      }
-    }
-  }, [isPlaying, currentTrack, executePlayAudio]);
+    setIsDockOpen(true);
+  }, []);
 
-  // Handle HTML5 track finished: auto-advance to next song
-  const handleAudioEnded = useCallback(() => {
-    console.log('🎵 Track finished. Seamlessly advancing to next Bollywood hit...');
-    nextTrack();
+  // Listen to YouTube postMessage events for seamless auto-advance ("one song after another")
+  useEffect(() => {
+    const handleWindowMessage = (event: MessageEvent) => {
+      try {
+        let payload = event.data;
+        if (typeof payload === 'string') {
+          try {
+            payload = JSON.parse(payload);
+          } catch {
+            return;
+          }
+        }
+        if (!payload || typeof payload !== 'object') return;
+
+        // YouTube postMessage API state updates: info 0 = ENDED, 1 = PLAYING, 2 = PAUSED
+        if (payload.event === 'onStateChange') {
+          if (payload.info === 0) {
+            console.log('🎵 Bollywood hit ended! Auto-playing next track...');
+            nextTrack();
+          } else if (payload.info === 1) {
+            setIsPlaying(true);
+            setIsDockOpen(true);
+          } else if (payload.info === 2) {
+            setIsPlaying(false);
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener('message', handleWindowMessage);
+    return () => window.removeEventListener('message', handleWindowMessage);
   }, [nextTrack]);
 
-  // Clean, universally embeddable YouTube URL for Video Mode
-  const embedUrl = `https://www.youtube.com/embed/${currentTrack.youtubeId}?autoplay=1&enablejsapi=1&playsinline=1&rel=0`;
-
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  // Clean, official YouTube embed URL with autoplay, playsinline, and jsapi enabled
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const embedUrl = `https://www.youtube.com/embed/${currentTrack.youtubeId}?autoplay=1&enablejsapi=1&playsinline=1&rel=0${origin ? `&origin=${encodeURIComponent(origin)}` : ''}`;
 
   return (
     <MusicContext.Provider
@@ -346,6 +332,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         isMuted,
         playerMode,
         isFloatingMinimized,
+        isDockOpen,
         currentTime,
         duration,
         playTrack,
@@ -356,37 +343,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         seek,
         setPlayerMode: handleSetPlayerMode,
         setIsFloatingMinimized,
+        setIsDockOpen,
       }}
     >
-      {/* 100% PERSISTENT HTML5 AUDIO ELEMENT (Always in DOM for instant response) */}
-      <audio
-        ref={audioRef}
-        src={currentTrack.audioUrl}
-        preload="auto"
-        playsInline
-        onEnded={handleAudioEnded}
-        onTimeUpdate={() => {
-          if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime);
-            if (audioRef.current.duration) {
-              setDuration(audioRef.current.duration);
-            }
-          }
-        }}
-        onLoadedMetadata={() => {
-          if (audioRef.current && audioRef.current.duration) {
-            setDuration(audioRef.current.duration);
-          }
-        }}
-        onError={() => {
-          console.warn('Audio playback recovering...');
-        }}
-      />
-
       {children}
 
-      {/* GLOBAL PERSISTENT BOLLYWOOD MUSIC DOCK */}
-      {isPlaying && (
+      {/* GLOBAL PERSISTENT OFFICIAL BOLLYWOOD MUSIC DOCK */}
+      {(isDockOpen || isPlaying) && (
         <div
           className={`fixed z-50 transition-all duration-300 ease-in-out shadow-2xl ${
             isCallingPage
@@ -401,48 +364,28 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
             boxShadow: `0 20px 50px -10px ${currentTrack.themeColor}33, 0 0 30px 2px ${currentTrack.themeColor}22`
           }}
         >
-          {/* Header Bar with Mode Switcher */}
+          {/* Header Bar */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping shrink-0" />
+              <span 
+                className="w-2.5 h-2.5 rounded-full animate-ping shrink-0" 
+                style={{ backgroundColor: currentTrack.themeColor }}
+              />
               <div className="min-w-0">
-                <p className="text-xs font-black text-white truncate max-w-[130px] sm:max-w-[160px]">
+                <p className="text-xs font-black text-white truncate max-w-[130px] sm:max-w-[180px]">
                   {currentTrack.title}
                 </p>
-                <span className="text-[9px] font-bold text-gray-400 block truncate max-w-[130px] sm:max-w-[160px]">
+                <span className="text-[9px] font-bold text-gray-400 block truncate max-w-[130px] sm:max-w-[180px]">
                   {currentTrack.movie} · {currentTrack.singer}
                 </span>
               </div>
             </div>
 
-            {/* Mode Switcher: Song Mode vs Video Mode */}
-            <div className="flex items-center gap-1 shrink-0">
-              <div className="flex items-center bg-white/10 rounded-xl p-0.5 border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => handleSetPlayerMode('song')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
-                    playerMode === 'song'
-                      ? 'bg-pink-500 text-white shadow'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Song Mode (Instant Audio Playback)"
-                >
-                  🎵 Song
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetPlayerMode('video')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
-                    playerMode === 'video'
-                      ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Video Mode (Watch Official Music Video)"
-                >
-                  🎬 Video
-                </button>
-              </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5" />
+                <span>BOLLYWOOD HIT</span>
+              </span>
 
               <button
                 type="button"
@@ -456,8 +399,9 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => {
+                  sendYouTubeCommand('pauseVideo');
                   setIsPlaying(false);
-                  audioRef.current?.pause();
+                  setIsDockOpen(false);
                 }}
                 className="p-1.5 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
                 title="Close Music Player"
@@ -467,52 +411,40 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* VIDEO MODE: Official YouTube Music Video */}
-          {!isFloatingMinimized && playerMode === 'video' && (
-            <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl mb-2.5">
-              <iframe
-                ref={iframeRef}
-                key={`yt_${currentTrack.id}`}
-                src={embedUrl}
-                title={`${currentTrack.title} - ${currentTrack.singer}`}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            </div>
-          )}
+          {/* OFFICIAL YOUTUBE MUSIC VIDEO: Kept alive off-screen when minimized so audio never pauses */}
+          <div
+            className={
+              isFloatingMinimized
+                ? 'fixed -top-[9999px] -left-[9999px] w-1 h-1 opacity-0 pointer-events-none'
+                : 'w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl mb-2.5 relative'
+            }
+          >
+            <iframe
+              ref={iframeRef}
+              key={`yt_${currentTrack.id}`}
+              src={embedUrl}
+              title={`${currentTrack.title} - ${currentTrack.singer}`}
+              className="w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
 
-          {/* SONG MODE: Rich Vinyl Visualizer, Seek Bar & Controls */}
-          {!isFloatingMinimized && playerMode === 'song' && (
-            <div className="flex flex-col gap-2.5 pt-1">
-              <div className="flex items-center gap-3">
-                {/* Rotating Vinyl Disc */}
-                <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={currentTrack.thumbnail}
-                    alt={currentTrack.title}
-                    className={`w-12 h-12 rounded-full object-cover border-2 border-pink-500 shadow-lg ${
-                      isPlaying ? 'animate-spin-slow' : ''
-                    }`}
-                  />
-                  <div className="absolute inset-0 rounded-full border border-black/40 pointer-events-none" />
-                  <div className="w-3 h-3 rounded-full bg-black/90 border border-white/30 absolute pointer-events-none" />
-                </div>
+          {/* EXPANDED CONTROLS BAR */}
+          {!isFloatingMinimized && (
+            <div className="flex flex-col gap-2 pt-0.5">
+              <div className="flex items-center justify-between">
+                {/* Volume & Live Soundwave Bars */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleMute}
+                    className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+                    title={isMuted ? 'Unmute' : 'Mute'}
+                  >
+                    {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-pink-400" />}
+                  </button>
 
-                {/* Song Info & Live Soundwave Bars */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className="text-xs font-black text-white truncate max-w-[150px]">{currentTrack.title}</p>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300">
-                      STEREO MP3
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-pink-300 truncate font-semibold mb-1">
-                    {currentTrack.movie} · {currentTrack.singer}
-                  </p>
-
-                  {/* Animated Soundwave Visualizer Bars */}
                   <div className="flex items-end gap-1 h-3.5">
                     {[35, 75, 50, 95, 60, 40, 85, 45, 90, 65, 30].map((h, i) => (
                       <div
@@ -527,43 +459,8 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                     ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Interactive Audio Progress Bar */}
-              <div className="flex flex-col gap-1 w-full px-0.5">
-                <div 
-                  className="relative w-full h-2 bg-white/10 rounded-full cursor-pointer group overflow-hidden"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const clickX = e.clientX - rect.left;
-                    const pct = Math.max(0, Math.min(1, clickX / rect.width));
-                    seek(pct * duration);
-                  }}
-                >
-                  <div 
-                    className="h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full transition-all group-hover:brightness-125"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[9px] font-mono text-gray-400 px-0.5">
-                  <span>{formatTime(currentTime)}</span>
-                  <span className="text-pink-400 font-bold">Auto-Next Enabled</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              </div>
-
-              {/* Bottom Controls Bar */}
-              <div className="flex items-center justify-between pt-0.5">
-                <button
-                  type="button"
-                  onClick={toggleMute}
-                  className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-                  title={isMuted ? 'Unmute' : 'Mute'}
-                >
-                  {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-pink-400" />}
-                </button>
-
-                {/* Center Playback Buttons */}
+                {/* Center Playback Controls */}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -593,33 +490,33 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                   </button>
                 </div>
 
-                {/* Watch Video Mode Shortcut */}
-                <button
-                  type="button"
-                  onClick={() => handleSetPlayerMode('video')}
-                  className="px-2 py-1 rounded-xl bg-purple-500/20 border border-purple-500/40 text-[10px] font-bold text-purple-300 hover:bg-purple-500/30 transition-colors flex items-center gap-1"
-                  title="Watch Official YouTube Video"
-                >
-                  <Tv className="w-3 h-3" />
-                  <span>Video</span>
-                </button>
+                {/* Auto-Next Badge */}
+                <span className="text-[9px] font-bold text-pink-300 bg-pink-500/15 px-2 py-1 rounded-lg border border-pink-500/30">
+                  Auto-Next 🔁
+                </span>
               </div>
             </div>
           )}
 
-          {/* MINIMIZED BAR: Sleek mini pill */}
+          {/* MINIMIZED PILL: Sleek mini bar while keeping video & audio playing seamlessly */}
           {isFloatingMinimized && (
             <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2 min-w-0">
+              <div 
+                className="flex items-center gap-2 min-w-0 cursor-pointer"
+                onClick={() => setIsFloatingMinimized(false)}
+                title="Tap to expand video player"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={currentTrack.thumbnail}
                   alt={currentTrack.title}
-                  className="w-8 h-8 rounded-full object-cover border border-pink-500 animate-spin-slow shrink-0"
+                  className={`w-8 h-8 rounded-full object-cover border border-pink-500 shrink-0 ${
+                    isPlaying ? 'animate-spin-slow' : ''
+                  }`}
                 />
                 <div className="truncate min-w-0">
-                  <p className="text-[10px] font-bold text-white truncate max-w-[120px]">{currentTrack.title}</p>
-                  <p className="text-[8px] text-pink-300 truncate max-w-[120px]">{currentTrack.movie}</p>
+                  <p className="text-[10px] font-bold text-white truncate max-w-[110px]">{currentTrack.title}</p>
+                  <p className="text-[8px] text-pink-300 truncate max-w-[110px]">{currentTrack.movie}</p>
                 </div>
               </div>
 
@@ -628,6 +525,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={togglePlay}
                   className="p-1.5 rounded-lg bg-pink-500 text-white hover:bg-pink-400"
+                  title={isPlaying ? 'Pause' : 'Play'}
                 >
                   {isPlaying ? <Pause className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current ml-0.5" />}
                 </button>
@@ -635,8 +533,17 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={nextTrack}
                   className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20"
+                  title="Next Song"
                 >
                   <SkipForward className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFloatingMinimized(false)}
+                  className="p-1.5 rounded-lg bg-white/10 text-gray-300 hover:text-white"
+                  title="Expand to Full Video"
+                >
+                  <Maximize2 className="w-3 h-3" />
                 </button>
               </div>
             </div>

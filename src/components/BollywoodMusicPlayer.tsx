@@ -135,21 +135,24 @@ export default function BollywoodMusicPlayer({ compact = false }: { compact?: bo
             <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
-          {/* Player Mode Switcher: Song Mode vs Video Mode */}
+          {/* Video Player Dock View/Hide Toggle */}
           <button
             onClick={() => {
-              const nextMode = playerMode === 'video' ? 'song' : 'video';
-              setPlayerMode(nextMode);
-              setIsFloatingMinimized(false);
+              if (!isPlaying) {
+                togglePlay();
+              } else {
+                setIsFloatingMinimized(!isFloatingMinimized);
+              }
             }}
             className={`px-2 py-1 sm:py-1.5 rounded-xl font-bold text-[10px] sm:text-xs transition-colors flex items-center gap-1 ${
-              playerMode === 'video' 
+              isPlaying && !isFloatingMinimized 
                 ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow' 
                 : 'bg-pink-500/20 text-pink-300 border border-pink-500/40 hover:bg-pink-500/30'
             }`}
-            title={playerMode === 'video' ? 'Switch to Song Mode (Audio Only)' : 'Switch to Video Mode'}
+            title={isPlaying && !isFloatingMinimized ? 'Minimize Video Dock' : 'Watch Official Music Video'}
           >
-            {playerMode === 'video' ? '🎬 Video' : '🎵 Song'}
+            <Tv className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <span>{isPlaying && !isFloatingMinimized ? '🎬 Hide' : '🎬 Video'}</span>
           </button>
         </div>
       </div>
