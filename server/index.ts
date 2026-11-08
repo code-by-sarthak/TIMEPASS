@@ -26,6 +26,15 @@ async function startServer() {
   // Enable CORS & JSON parsing & static assets
   expressApp.use(cors());
   expressApp.use(express.json());
+
+  // Intercept body-parser JSON parse errors and return pure JSON, never HTML
+  expressApp.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof SyntaxError && 'body' in err) {
+      return res.status(400).json({ success: false, error: 'Malformed JSON payload' });
+    }
+    next(err);
+  });
+
   expressApp.use(express.static('public'));
 
   // Attach API routes
@@ -64,6 +73,21 @@ async function startServer() {
   // Delegate all other routes to Next.js handler
   expressApp.all('*', (req, res) => {
     return handle(req, res);
+  });
+
+  // Global Error Handler: Guarantee /api/* ALWAYS returns JSON, NEVER HTML!
+  expressApp.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('API Error caught:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    if (req.path.startsWith('/api')) {
+      return res.status(err.status || 500).json({
+        success: false,
+        error: err.message || 'Internal server error'
+      });
+    }
+    next(err);
   });
 
   server.listen(port, () => {
