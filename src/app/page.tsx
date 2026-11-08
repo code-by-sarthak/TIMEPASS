@@ -181,7 +181,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-dark-surface text-foreground selection:bg-pink-500 selection:text-white">
-      <Navbar onOpenAuth={() => setIsAuthOpen(true)} />
+      <Navbar onOpenAuth={(redirectUrl) => {
+        if (redirectUrl) setPendingRedirectUrl(redirectUrl);
+        setIsAuthOpen(true);
+      }} />
 
       {/* Floating Bollywood Romance Music Bar */}
       <div className="sticky top-16 z-30 w-full px-4 py-2 bg-black/60 backdrop-blur-md border-b border-pink-500/15 flex items-center justify-center">
@@ -271,7 +274,15 @@ export default function HomePage() {
             </button>
 
             <button
-              onClick={() => router.push('/rooms')}
+              onClick={() => {
+                if (!user) {
+                  setAuthPromptMessage('Sign in with your Gmail or Email to join or create 8-member squad rooms');
+                  setPendingRedirectUrl('/rooms');
+                  setIsAuthOpen(true);
+                  return;
+                }
+                router.push('/rooms');
+              }}
               className="w-full sm:w-auto px-8 py-4 rounded-2xl glass-toolbar border border-pink-500/30 text-white font-bold text-base hover:bg-pink-500/10 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2.5 shadow-xl shadow-pink-500/10"
             >
               <Users className="w-5 h-5 text-pink-400" />

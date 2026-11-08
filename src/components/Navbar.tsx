@@ -2,23 +2,28 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Video, MessageSquare, Users, Shield, User as UserIcon, Sun, Moon, LogIn, LogOut, Radio, Clock, ShieldAlert } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Video, MessageSquare, Users, Shield, User as UserIcon, Sun, Moon, LogOut, Radio, Clock, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { getSocket } from '@/lib/socket';
 import TimepassLogo from '@/components/TimepassLogo';
+import AuthModal from '@/components/AuthModal';
 
 interface NavbarProps {
-  onOpenAuth?: () => void;
+  onOpenAuth?: (redirectUrl?: string) => void;
 }
 
 export default function Navbar({ onOpenAuth }: NavbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [onlineCount, setOnlineCount] = useState<number>(1);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [internalAuthOpen, setInternalAuthOpen] = useState(false);
+  const [pendingRedirectUrl, setPendingRedirectUrl] = useState<string | null>(null);
+  const [authPromptMessage, setAuthPromptMessage] = useState<string>('');
 
   useEffect(() => {
     const socket = getSocket();
@@ -34,6 +39,19 @@ export default function Navbar({ onOpenAuth }: NavbarProps) {
       }
     };
   }, []);
+
+  const handleProtectedNav = (e: React.MouseEvent, url: string, message: string) => {
+    if (!user) {
+      e.preventDefault();
+      if (onOpenAuth) {
+        onOpenAuth(url);
+      } else {
+        setPendingRedirectUrl(url);
+        setAuthPromptMessage(message);
+        setInternalAuthOpen(true);
+      }
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-indigo-500/10">
@@ -54,6 +72,7 @@ export default function Navbar({ onOpenAuth }: NavbarProps) {
         <nav className="flex items-center gap-1 sm:gap-2">
           <Link
             href="/video"
+            onClick={(e) => handleProtectedNav(e, '/video', 'Sign in with your Gmail or Email to start 1-on-1 video calls & chat')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${
               pathname === '/video'
                 ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
@@ -66,6 +85,7 @@ export default function Navbar({ onOpenAuth }: NavbarProps) {
 
           <Link
             href="/rooms"
+            onClick={(e) => handleProtectedNav(e, '/rooms', 'Sign in with your Gmail or Email to join or create 8-member squad rooms')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${
               pathname.startsWith('/rooms')
                 ? 'bg-accent-purple/20 text-purple-300 border border-purple-500/30'
@@ -98,7 +118,7 @@ export default function Navbar({ onOpenAuth }: NavbarProps) {
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
           </button>
 
-          {/* User Account / Profile Menu */}
+          {/* User Account / Profile Menu (ONLY shown when user is signed in) */}
           {user ? (
             <div className="relative">
               <button
@@ -151,17 +171,27 @@ export default function Navbar({ onOpenAuth }: NavbarProps) {
                 </div>
               )}
             </div>
-          ) : (
-            <button
-              onClick={onOpenAuth}
-              className="px-3.5 py-1.5 rounded-lg gradient-button text-white text-sm font-medium flex items-center gap-1.5 shadow-md shadow-brand-500/20"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Sign In</span>
-            </button>
-          )}
+          ) : null}
         </nav>
       </div>
+
+      {/* Internal AuthModal triggered on clicking video chat or rooms when not logged in */}
+      <AuthModal
+        isOpen={internalAuthOpen}
+        onClose={() => {
+          setInternalAuthOpen(false);
+          setAuthPromptMessage('');
+        }}
+        promptMessage={authPromptMessage}
+        onSuccess={() => {
+          setInternalAuthOpen(false);
+          if (pendingRedirectUrl) {
+            const dest = pendingRedirectUrl;
+            setPendingRedirectUrl(null);
+            router.push(dest);
+          }
+        }}
+      />
     </header>
   );
 }
