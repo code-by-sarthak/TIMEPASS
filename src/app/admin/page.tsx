@@ -93,6 +93,11 @@ export default function AdminPage() {
     try {
       setAuthError(null);
 
+      const safeJsonRes = async (res: Response) => {
+        const ct = res.headers.get('content-type') || '';
+        return ct.includes('application/json') ? res.json() : {};
+      };
+
       // 1. Fetch Stats
       const statsRes = await fetch('/api/admin/stats', {
         headers: { 'x-admin-key': key }
@@ -100,7 +105,7 @@ export default function AdminPage() {
       if (!statsRes.ok) {
         throw new Error('Invalid Admin Key. Access denied.');
       }
-      const statsData = await statsRes.json();
+      const statsData = await safeJsonRes(statsRes);
       setStats(statsData);
 
       // 2. Fetch Live Rooms
@@ -108,7 +113,7 @@ export default function AdminPage() {
         headers: { 'x-admin-key': key }
       });
       if (roomsRes.ok) {
-        const roomsData = await roomsRes.json();
+        const roomsData = await safeJsonRes(roomsRes);
         setRooms(roomsData.rooms || []);
       }
 
@@ -117,7 +122,7 @@ export default function AdminPage() {
         headers: { 'x-admin-key': key }
       });
       if (socketsRes.ok) {
-        const socketsData = await socketsRes.json();
+        const socketsData = await safeJsonRes(socketsRes);
         setActiveSockets(socketsData.activeSockets || []);
       }
 
@@ -126,7 +131,7 @@ export default function AdminPage() {
         headers: { 'x-admin-key': key }
       });
       if (reportsRes.ok) {
-        const reportsData = await reportsRes.json();
+        const reportsData = await safeJsonRes(reportsRes);
         setReports(reportsData.reports || []);
       }
 
@@ -135,7 +140,7 @@ export default function AdminPage() {
         headers: { 'x-admin-key': key }
       });
       if (usersRes.ok) {
-        const usersData = await usersRes.json();
+        const usersData = await safeJsonRes(usersRes);
         setUsers(usersData.users || []);
       }
 
@@ -171,7 +176,8 @@ export default function AdminPage() {
         })
       });
 
-      const data = await res.json();
+      const ct = res.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await res.json() : {};
       if (res.ok) {
         setBroadcastFeedback('📢 Broadcast announcement sent live to all active users!');
         setBroadcastMessage('');

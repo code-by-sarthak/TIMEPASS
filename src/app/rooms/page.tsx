@@ -84,9 +84,12 @@ export default function RoomsLobbyPage() {
   const fetchRooms = async () => {
     try {
       const res = await fetch('/api/rooms');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.rooms)) {
-        setRooms(data.rooms);
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.rooms)) {
+          setRooms(data.rooms);
+        }
       }
     } catch {
       // Fallback
@@ -141,12 +144,13 @@ export default function RoomsLobbyPage() {
         })
       });
 
-      const data = await res.json();
-      if (data.success && data.room) {
+      const ct = res.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await res.json() : null;
+      if (data?.success && data?.room) {
         soundManager.playPop();
         router.push(`/rooms/${data.room.id}`);
       } else {
-        setErrorMsg(data.error || 'Failed to create room');
+        setErrorMsg(data?.error || 'Failed to create room');
       }
     } catch {
       setErrorMsg('Network error. Please try again.');

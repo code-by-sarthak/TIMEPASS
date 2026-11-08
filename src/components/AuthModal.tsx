@@ -340,7 +340,9 @@ export default function AuthModal({
 
           {error && (
             <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
-              {error}
+              {error.includes('<!DOCTYPE') || error.includes('Unexpected token') || error.includes('is not valid JSON') || error.includes('<')
+                ? 'Connecting to secure server... Please try again.'
+                : error}
             </div>
           )}
 

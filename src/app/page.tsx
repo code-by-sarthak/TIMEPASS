@@ -83,8 +83,12 @@ export default function HomePage() {
   useEffect(() => {
     // 1. Initial REST fetch for instant display
     fetch('/api/live-status')
-      .then((res) => res.json())
+      .then((res) => {
+        const ct = res.headers.get('content-type') || '';
+        return ct.includes('application/json') ? res.json() : null;
+      })
       .then((data) => {
+        if (!data) return;
         if (data.onlineCount) setOnlineCount(data.onlineCount);
         if (Array.isArray(data.recentActivities)) setRecentActivities(data.recentActivities);
         if (Array.isArray(data.activeUsers)) setActiveUsers(data.activeUsers);

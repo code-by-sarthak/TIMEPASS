@@ -58,18 +58,18 @@ export default function ProfilePage() {
     if (!token) return;
 
     fetch('/api/profile/blocks', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => { if (data.blocks) setBlocks(data.blocks); })
+      .then((r) => { const ct = r.headers.get('content-type') || ''; return ct.includes('application/json') ? r.json() : null; })
+      .then((data) => { if (data?.blocks) setBlocks(data.blocks); })
       .catch(() => {});
 
     fetch('/api/profile/friends', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => { if (data.friends) setFriends(data.friends); })
+      .then((r) => { const ct = r.headers.get('content-type') || ''; return ct.includes('application/json') ? r.json() : null; })
+      .then((data) => { if (data?.friends) setFriends(data.friends); })
       .catch(() => {});
 
     fetch('/api/profile/history', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => { if (data.conversations) setHistory(data.conversations); })
+      .then((r) => { const ct = r.headers.get('content-type') || ''; return ct.includes('application/json') ? r.json() : null; })
+      .then((data) => { if (data?.conversations) setHistory(data.conversations); })
       .catch(() => {});
   }, [token]);
 
