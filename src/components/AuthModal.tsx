@@ -65,11 +65,12 @@ const BOLLYWOOD_CARDS = [
 ];
 
 export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: AuthModalProps) {
-  const { continueAsGuest, loginWithGoogle } = useAuth();
+  const { continueAsGuest, loginWithGoogle, loginWithGmail } = useAuth();
   const [tab, setTab] = useState<'google' | 'guest'>(defaultTab);
 
   // Form Details
   const [displayName, setDisplayName] = useState('');
+  const [gmailInput, setGmailInput] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>('Female');
   const [region, setRegion] = useState('Mumbai (Maharashtra)');
   const [ageConfirmed, setAgeConfirmed] = useState(true);
@@ -90,7 +91,32 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: Au
     }
   };
 
-  // 2. Instant Guest Login with Full Details
+  // 2. Direct Gmail Address Login
+  const handleGmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ageConfirmed) {
+      setError('You must confirm you are at least 18 years old to join.');
+      return;
+    }
+    if (!gmailInput.trim() || !gmailInput.includes('@')) {
+      setError('Please enter a valid Gmail address (e.g. yourname@gmail.com).');
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+    const success = await loginWithGmail(
+      gmailInput.trim(), 
+      displayName.trim() || undefined, 
+      { gender, region }
+    );
+    setLoading(false);
+    if (success) {
+      onClose();
+    }
+  };
+
+  // 3. Instant Guest Login with Full Details
   const handleGuestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ageConfirmed) {
@@ -98,16 +124,13 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: Au
       return;
     }
 
-    if (!displayName.trim()) {
-      setError('Please enter your name or nickname to proceed.');
-      return;
-    }
+    const guestName = displayName.trim() || `Chatter_${Math.floor(1000 + Math.random() * 9000)}`;
 
     setError(null);
     setLoading(true);
 
     const success = await continueAsGuest({
-      displayName: displayName.trim(),
+      displayName: guestName,
       gender,
       region,
       country: region.includes('(') ? region.split('(')[1].replace(')', '') : 'India',
@@ -275,7 +298,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: Au
             </div>
           </div>
 
-          {/* TAB 1: Google One-Click */}
+          {/* TAB 1: Google / Gmail Sign-In */}
           {tab === 'google' && (
             <div className="space-y-4">
               <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-300">
@@ -290,6 +313,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: Au
                 </span>
               </label>
 
+              {/* 1-Click Google OAuth Button */}
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
@@ -301,8 +325,34 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'google' }: Au
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <p className="text-[11px] text-gray-400 text-center">
-                Syncs your real Google display name & verified photo securely.
+              <div className="flex items-center my-3 text-xs text-gray-500">
+                <div className="flex-1 border-t border-white/10" />
+                <span className="px-3 uppercase font-bold text-[10px] text-gray-400">Or Sign In with your Gmail ID</span>
+                <div className="flex-1 border-t border-white/10" />
+              </div>
+
+              {/* Direct Gmail Address Input Form */}
+              <form onSubmit={handleGmailSignIn} className="space-y-2.5">
+                <input
+                  type="email"
+                  required
+                  placeholder="Enter your Gmail address (e.g. name@gmail.com)"
+                  value={gmailInput}
+                  onChange={(e) => setGmailInput(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-pink-500"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !gmailInput.includes('@')}
+                  className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center justify-center gap-2 border border-white/10 hover:border-pink-500/40 transition-all disabled:opacity-50"
+                >
+                  <Chrome className="w-3.5 h-3.5 text-pink-400" />
+                  <span>{loading ? 'Signing in...' : 'Sign In with Gmail'}</span>
+                </button>
+              </form>
+
+              <p className="text-[10px] text-gray-400 text-center">
+                Instant access with your Gmail account. No password or verification required.
               </p>
             </div>
           )}

@@ -64,7 +64,7 @@ function formatTimeAgo(ts: number): string {
 
 export default function HomePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, continueAsGuest } = useAuth();
   const [selectedInterests, setSelectedInterests] = useState<string[]>(['Music', 'Movies', 'Travel']);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('Hindi');
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<'Anyone' | 'Girls' | 'Boys'>('Anyone');
@@ -154,11 +154,19 @@ export default function HomePage() {
     );
   };
 
-  const handleStartChat = (mode: 'video' | 'text', subMode?: 'avatar') => {
-    // If not signed in or guest, prompt AuthModal with full details!
+  const handleStartChat = async (mode: 'video' | 'text', subMode?: 'avatar') => {
+    // If not signed in, seamlessly initialize an instant guest session so visitor is never blocked
     if (!user) {
-      setIsAuthOpen(true);
-      return;
+      const ok = await continueAsGuest({
+        displayName: `Guest_${Math.floor(1000 + Math.random() * 9000)}`,
+        gender: selectedGenderFilter === 'Anyone' ? 'Female' : selectedGenderFilter,
+        region: 'India',
+        country: 'India'
+      });
+      if (!ok) {
+        setIsAuthOpen(true);
+        return;
+      }
     }
 
     const params = new URLSearchParams();

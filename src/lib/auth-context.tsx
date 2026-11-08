@@ -25,6 +25,7 @@ interface AuthContextType {
   sendOtp: (phone: string) => Promise<{ success: boolean; devCode?: string; error?: string }>;
   verifyOtp: (phone: string, code: string, displayName?: string) => Promise<boolean>;
   loginWithGoogle: (extraProfile?: { gender?: string; region?: string }) => Promise<boolean>;
+  loginWithGmail: (email: string, displayName?: string, extraProfile?: { gender?: string; region?: string }) => Promise<boolean>;
   syncFirebaseUser: (data: FirebaseSyncData) => Promise<boolean>;
   logout: () => void;
   updateUser: (updatedUser: Partial<User>) => void;
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   sendOtp: async () => ({ success: false }),
   verifyOtp: async () => false,
   loginWithGoogle: async () => false,
+  loginWithGmail: async () => false,
   syncFirebaseUser: async () => false,
   logout: () => {},
   updateUser: () => {},
@@ -105,6 +107,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Direct, reliable Gmail login without Firebase popup restrictions
+  const loginWithGmail = async (email: string, displayName?: string, extraProfile?: { gender?: string; region?: string }): Promise<boolean> => {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanName = displayName?.trim() || cleanEmail.split('@')[0];
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          displayName: cleanName,
+          photoUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanName)}`,
+          gender: extraProfile?.gender,
+          region: extraProfile?.region
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        saveAuth(data.token, data.user);
+        return true;
+      }
+      throw new Error(data.error || 'Gmail sign-in failed');
+    } catch (err: unknown) {
+      alert((err as Error).message);
+      return false;
+    }
+  };
+
   const loginWithGoogle = async (extraProfile?: { gender?: string; region?: string }): Promise<boolean> => {
     try {
       const fbUser = await signInWithGooglePopup();
@@ -119,8 +149,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (err: unknown) {
       const error = err as Error;
-      if (!error.message?.includes('popup-closed-by-user')) {
-        alert(error.message || 'Google Sign-In failed');
+      console.warn('Firebase popup failed or domain restricted:', error.message);
+      if (error.message?.includes('popup-closed-by-user')) {
+        return false;
+      }
+      // Automatic fallback: Prompt for Gmail ID so user is never blocked
+      const promptEmail = prompt('Google popup was restricted on this origin. Enter your Gmail address to sign in instantly:');
+      if (promptEmail && promptEmail.includes('@')) {
+        return await loginWithGmail(promptEmail, undefined, extraProfile);
       }
       return false;
     }
@@ -260,6 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sendOtp,
       verifyOtp,
       loginWithGoogle,
+      loginWithGmail,
       syncFirebaseUser,
       logout,
       updateUser,

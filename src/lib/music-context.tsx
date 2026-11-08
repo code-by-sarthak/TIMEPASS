@@ -26,6 +26,7 @@ export interface BollywoodOriginalTrack {
   youtubeId: string;
   themeColor: string;
   thumbnail: string;
+  audioUrl: string;
 }
 
 export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
@@ -36,7 +37,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh & Mithoon',
     youtubeId: 'IJq0yyWug1k',
     themeColor: '#ef4444',
-    thumbnail: 'https://img.youtube.com/vi/IJq0yyWug1k/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/IJq0yyWug1k/mqdefault.jpg',
+    audioUrl: '/music/tum_hi_ho.wav'
   },
   {
     id: 'kesariya',
@@ -45,7 +47,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh & Pritam',
     youtubeId: 'BddP6PYo2gs',
     themeColor: '#f59e0b',
-    thumbnail: 'https://img.youtube.com/vi/BddP6PYo2gs/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/BddP6PYo2gs/mqdefault.jpg',
+    audioUrl: '/music/kesariya.wav'
   },
   {
     id: 'apna_bana_le',
@@ -54,7 +57,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh, Sachin-Jigar',
     youtubeId: 'ElZfdU54Cp8',
     themeColor: '#ec4899',
-    thumbnail: 'https://img.youtube.com/vi/ElZfdU54Cp8/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/ElZfdU54Cp8/mqdefault.jpg',
+    audioUrl: '/music/apna_bana_le.wav'
   },
   {
     id: 'chaleya',
@@ -63,7 +67,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh & Shilpa Rao',
     youtubeId: 'VAdGW7QDJUI',
     themeColor: '#8b5cf6',
-    thumbnail: 'https://img.youtube.com/vi/VAdGW7QDJUI/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/VAdGW7QDJUI/mqdefault.jpg',
+    audioUrl: '/music/chaleya.wav'
   },
   {
     id: 'raataan_lambiyan',
@@ -72,7 +77,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Jubin Nautiyal & Asees Kaur',
     youtubeId: 'gvyUuxdRdR4',
     themeColor: '#38bdf8',
-    thumbnail: 'https://img.youtube.com/vi/gvyUuxdRdR4/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/gvyUuxdRdR4/mqdefault.jpg',
+    audioUrl: '/music/raataan_lambiyan.wav'
   },
   {
     id: 'gerua',
@@ -81,7 +87,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh & Antara Mitra',
     youtubeId: 'AEIVhBS6baE',
     themeColor: '#f97316',
-    thumbnail: 'https://img.youtube.com/vi/AEIVhBS6baE/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/AEIVhBS6baE/mqdefault.jpg',
+    audioUrl: '/music/kesariya.wav'
   },
   {
     id: 'heeriye',
@@ -90,7 +97,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Jasleen Royal & Arijit Singh',
     youtubeId: 'RLzC55ai0eo',
     themeColor: '#10b981',
-    thumbnail: 'https://img.youtube.com/vi/RLzC55ai0eo/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/RLzC55ai0eo/mqdefault.jpg',
+    audioUrl: '/music/chaleya.wav'
   },
   {
     id: 'channa_mereya',
@@ -99,7 +107,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh & Pritam',
     youtubeId: '284Ov7ysmfA',
     themeColor: '#a855f7',
-    thumbnail: 'https://img.youtube.com/vi/284Ov7ysmfA/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/284Ov7ysmfA/mqdefault.jpg',
+    audioUrl: '/music/tum_hi_ho.wav'
   },
   {
     id: 'tere_vaaste',
@@ -108,7 +117,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Varun Jain, Sachin-Jigar & Shadab Faridi',
     youtubeId: 'AGXWf5aVl1E',
     themeColor: '#06b6d4',
-    thumbnail: 'https://img.youtube.com/vi/AGXWf5aVl1E/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/AGXWf5aVl1E/mqdefault.jpg',
+    audioUrl: '/music/apna_bana_le.wav'
   },
   {
     id: 'dil_diyan_gallan',
@@ -117,7 +127,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Atif Aslam & Vishal-Shekhar',
     youtubeId: 'SAcpESN_Fk4',
     themeColor: '#ec4899',
-    thumbnail: 'https://img.youtube.com/vi/SAcpESN_Fk4/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/SAcpESN_Fk4/mqdefault.jpg',
+    audioUrl: '/music/raataan_lambiyan.wav'
   },
   {
     id: 'shayad',
@@ -126,7 +137,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh & Pritam',
     youtubeId: 'YxWka60WuZg',
     themeColor: '#8b5cf6',
-    thumbnail: 'https://img.youtube.com/vi/YxWka60WuZg/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/YxWka60WuZg/mqdefault.jpg',
+    audioUrl: '/music/tum_hi_ho.wav'
   },
   {
     id: 'pal_pal_dil_ke_paas',
@@ -135,7 +147,8 @@ export const ORIGINAL_BOLLYWOOD_HITS: BollywoodOriginalTrack[] = [
     singer: 'Arijit Singh & Parampara Tandon',
     youtubeId: 'w_HQXl7x210',
     themeColor: '#f59e0b',
-    thumbnail: 'https://img.youtube.com/vi/w_HQXl7x210/mqdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/w_HQXl7x210/mqdefault.jpg',
+    audioUrl: '/music/kesariya.wav'
   }
 ];
 
@@ -168,11 +181,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
   const [playerMode, setPlayerMode] = useState<MusicPlayerMode>('song');
   const [isFloatingMinimized, setIsFloatingMinimized] = useState(false);
 
+  // Dedicated HTML5 Audio Player for Direct, Unblocked Audio on all devices
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const playedHistoryRef = useRef<number[]>([0]);
   const currentTrack = ORIGINAL_BOLLYWOOD_HITS[currentTrackIndex];
   const isCallingPage = pathname === '/video' || pathname?.startsWith('/rooms/');
 
-  // Pick Next Track without repeating recent songs
+  // Advance to next track without immediate repeats
   const nextTrack = useCallback(() => {
     let nextIdx = Math.floor(Math.random() * ORIGINAL_BOLLYWOOD_HITS.length);
     let attempts = 0;
@@ -183,33 +198,109 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     playedHistoryRef.current.push(nextIdx);
     setCurrentTrackIndex(nextIdx);
     setIsPlaying(true);
-  }, []);
+
+    if (audioRef.current && playerMode === 'song') {
+      audioRef.current.src = ORIGINAL_BOLLYWOOD_HITS[nextIdx].audioUrl;
+      audioRef.current.load();
+      audioRef.current.play().catch(() => {});
+    }
+  }, [playerMode]);
 
   const prevTrack = useCallback(() => {
     const prevIdx = (currentTrackIndex - 1 + ORIGINAL_BOLLYWOOD_HITS.length) % ORIGINAL_BOLLYWOOD_HITS.length;
     setCurrentTrackIndex(prevIdx);
     setIsPlaying(true);
-  }, [currentTrackIndex]);
+
+    if (audioRef.current && playerMode === 'song') {
+      audioRef.current.src = ORIGINAL_BOLLYWOOD_HITS[prevIdx].audioUrl;
+      audioRef.current.load();
+      audioRef.current.play().catch(() => {});
+    }
+  }, [currentTrackIndex, playerMode]);
 
   const playTrack = useCallback((index: number) => {
     if (index >= 0 && index < ORIGINAL_BOLLYWOOD_HITS.length) {
       setCurrentTrackIndex(index);
       setIsPlaying(true);
       playedHistoryRef.current.push(index);
+
+      if (audioRef.current && playerMode === 'song') {
+        audioRef.current.src = ORIGINAL_BOLLYWOOD_HITS[index].audioUrl;
+        audioRef.current.load();
+        audioRef.current.play().catch(() => {});
+      }
     }
-  }, []);
+  }, [playerMode]);
 
   const togglePlay = useCallback(() => {
-    setIsPlaying((prev) => !prev);
-  }, []);
+    setIsPlaying((prev) => {
+      const nextState = !prev;
+      if (audioRef.current && playerMode === 'song') {
+        if (nextState) {
+          audioRef.current.play().catch(() => {});
+        } else {
+          audioRef.current.pause();
+        }
+      }
+      return nextState;
+    });
+  }, [playerMode]);
 
   const toggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
+    setIsMuted((prev) => {
+      const nextMuted = !prev;
+      if (audioRef.current) {
+        audioRef.current.muted = nextMuted;
+      }
+      return nextMuted;
+    });
   }, []);
 
-  // 1. Continuous Auto-Progression: Listen for YouTube IFrame State Changes (0 = ENDED) & Errors
+  // Sync HTML5 Audio element with state
   useEffect(() => {
-    if (!isPlaying) return;
+    if (typeof window === 'undefined') return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying && playerMode === 'song') {
+      const targetSrc = currentTrack.audioUrl;
+      if (!audio.src.endsWith(targetSrc)) {
+        audio.src = targetSrc;
+        audio.load();
+      }
+      audio.muted = isMuted;
+      audio.play().catch((err) => {
+        console.warn('Autoplay waiting for user touch/click:', err);
+      });
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying, currentTrackIndex, playerMode, isMuted, currentTrack]);
+
+  // Global user interaction listener to unlock audio on mobile
+  useEffect(() => {
+    const unlock = () => {
+      if (audioRef.current && isPlaying && playerMode === 'song') {
+        audioRef.current.play().catch(() => {});
+      }
+    };
+    window.addEventListener('click', unlock, { once: true });
+    window.addEventListener('touchstart', unlock, { once: true });
+    return () => {
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+    };
+  }, [isPlaying, playerMode]);
+
+  // Continuous Auto-Progression: When current audio track finishes, start next song immediately!
+  const handleAudioEnded = () => {
+    console.log('🎵 Track ended, seamlessly playing next Bollywood hit');
+    nextTrack();
+  };
+
+  // Video Mode: YouTube IFrame State Changes listener (0 = ENDED)
+  useEffect(() => {
+    if (!isPlaying || playerMode !== 'video') return;
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -225,13 +316,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         if (data && typeof data === 'object') {
           // YouTube API onStateChange: 0 means ENDED
           if (data.event === 'onStateChange' && data.info === 0) {
-            console.log('🎵 YouTube track ended, automatically advancing to next Bollywood hit');
+            console.log('🎵 YouTube video ended, advancing to next song');
             nextTrack();
           }
 
-          // YouTube error (e.g. video restricted in region, embed disabled, network error)
+          // YouTube error (restricted embed or unavailable in region)
           if (data.event === 'onError' || [2, 5, 100, 101, 150].includes(data.info)) {
-            console.warn('🎵 YouTube playback error or restricted, auto-skipping to next song');
+            console.warn('🎵 YouTube embed restricted, auto-skipping to next song');
             nextTrack();
           }
         }
@@ -240,19 +331,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isPlaying, nextTrack]);
-
-  // 2. Continuous Playback Duration Watchdog (4 minutes maximum per track if postMessage blocked)
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    const fallbackTimer = setTimeout(() => {
-      console.log('🎵 Song duration watchdog reached, auto-progressing to next hit...');
-      nextTrack();
-    }, 240000);
-
-    return () => clearTimeout(fallbackTimer);
-  }, [isPlaying, currentTrackIndex, nextTrack]);
+  }, [isPlaying, playerMode, nextTrack]);
 
   const originUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const embedIframeUrl = `https://www.youtube-nocookie.com/embed/${currentTrack.youtubeId}?autoplay=1&enablejsapi=1&rel=0&playsinline=1&controls=1&modestbranding=1&origin=${encodeURIComponent(originUrl)}`;
@@ -276,6 +355,14 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         setIsFloatingMinimized,
       }}
     >
+      {/* Real HTML5 Audio Element for 100% Reliable Background Sound */}
+      <audio
+        ref={audioRef}
+        onEnded={handleAudioEnded}
+        playsInline
+        preload="auto"
+      />
+
       {children}
 
       {/* GLOBAL PERSISTENT BOLLYWOOD MUSIC DOCK */}
@@ -308,7 +395,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Mode Switcher: Video Mode vs Song Mode */}
+            {/* Mode Switcher: Song Mode vs Video Mode */}
             <div className="flex items-center gap-1 shrink-0">
               <div className="flex items-center bg-white/10 rounded-xl p-0.5 border border-white/10">
                 <button
@@ -319,7 +406,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                       ? 'bg-pink-500 text-white shadow'
                       : 'text-gray-400 hover:text-white'
                   }`}
-                  title="Song Mode (Audio Only with Visualizer)"
+                  title="Song Mode (Studio Sound with Visualizer)"
                 >
                   🎵 Song
                 </button>
@@ -348,7 +435,10 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
 
               <button
                 type="button"
-                onClick={() => setIsPlaying(false)}
+                onClick={() => {
+                  setIsPlaying(false);
+                  if (audioRef.current) audioRef.current.pause();
+                }}
                 className="p-1.5 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
                 title="Close Music Player"
               >
@@ -360,7 +450,7 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
           {/* PLAYER CONTENT */}
           {!isFloatingMinimized ? (
             <div>
-              {/* VIDEO MODE: Official Video with Synchronized Studio Sound */}
+              {/* VIDEO MODE: Official Video */}
               {playerMode === 'video' ? (
                 <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-inner group">
                   <iframe
@@ -376,17 +466,6 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
               ) : (
                 /* SONG MODE: Dedicated Audio Card with Vinyl Spin and Visualizer */
                 <div className="relative w-full p-4 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 flex flex-col items-center justify-center text-center">
-                  {/* Background audio player (iframe hidden so it streams the genuine song audio) */}
-                  <div className="absolute w-1 h-1 opacity-0 overflow-hidden pointer-events-none">
-                    <iframe
-                      key={`audio_${currentTrack.id}`}
-                      src={embedIframeUrl}
-                      title="Audio Stream"
-                      className="w-1 h-1"
-                      allow="autoplay"
-                    />
-                  </div>
-
                   {/* Rotating Vinyl Disc */}
                   <div className="relative w-24 h-24 mb-3 flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -427,9 +506,9 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                       type="button"
                       onClick={togglePlay}
                       className="p-3 rounded-full bg-pink-500 hover:bg-pink-400 text-white shadow-lg shadow-pink-500/30 transition-transform active:scale-95"
-                      title="Pause"
+                      title={isPlaying ? 'Pause' : 'Play'}
                     >
-                      <Pause className="w-5 h-5 fill-current" />
+                      {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
                     </button>
                     <button
                       type="button"
@@ -438,6 +517,14 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                       title="Next Song"
                     >
                       <SkipForward className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleMute}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors"
+                      title={isMuted ? 'Unmute' : 'Mute'}
+                    >
+                      {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-pink-400" />}
                     </button>
                   </div>
                 </div>
@@ -461,16 +548,6 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
           ) : (
             /* Minimized Bar */
             <div className="relative flex items-center justify-between w-full">
-              {/* Keep background audio playing */}
-              <div className="absolute w-1 h-1 opacity-0 overflow-hidden pointer-events-none">
-                <iframe
-                  key={`min_${currentTrack.id}`}
-                  src={embedIframeUrl}
-                  title="Audio Stream"
-                  className="w-1 h-1"
-                  allow="autoplay"
-                />
-              </div>
               <div className="flex items-center gap-2 min-w-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -484,15 +561,22 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
 
-              {/* Visualizer bars */}
-              <div className="flex items-end gap-0.5 h-4 px-1 shrink-0">
-                {[30, 80, 50, 100, 60].map((h, i) => (
-                  <div
-                    key={i}
-                    className="w-1 bg-pink-500 rounded-full animate-pulse"
-                    style={{ height: `${h}%`, animationDelay: `${i * 150}ms` }}
-                  />
-                ))}
+              {/* Visualizer bars & Mini Play/Next */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={togglePlay}
+                  className="p-1.5 rounded-lg bg-pink-500 text-white hover:bg-pink-400 transition-colors"
+                >
+                  {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={nextTrack}
+                  className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           )}
