@@ -101,6 +101,23 @@ export default function RoomsLobbyPage() {
   useEffect(() => {
     fetchRooms();
 
+    // Check for invite code in URL (e.g. /rooms?code=xyz or /rooms?join=xyz)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const codeParam = params.get('join') || params.get('code') || params.get('room');
+      if (codeParam) {
+        const cleanCode = codeParam.trim().replace(/^#/, '');
+        setInviteCodeInput(cleanCode);
+        if (user) {
+          router.push(`/rooms/${cleanCode}`);
+        } else {
+          setAuthPromptMessage('Sign in with your Gmail or Email to join this squad room');
+          setPendingRoomId(cleanCode);
+          setIsAuthOpen(true);
+        }
+      }
+    }
+
     // REAL-TIME INSTANT ROOM UPDATES: Anyone joining or creating rooms updates lobby instantly
     const socket = getSocket(user?.id, user?.displayName);
     const handleRoomsUpdated = (updatedRooms: RoomSummary[]) => {
@@ -116,7 +133,7 @@ export default function RoomsLobbyPage() {
       socket.off('custom-rooms-updated', handleRoomsUpdated);
       clearInterval(interval);
     };
-  }, [user]);
+  }, [user, router]);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -374,16 +391,23 @@ export default function RoomsLobbyPage() {
                           onClick={(e) => {
                             e.stopPropagation();
                             const link = typeof window !== 'undefined' ? `${window.location.origin}/rooms/${room.id}` : `/rooms/${room.id}`;
+                            if (typeof navigator !== 'undefined' && navigator.share) {
+                              navigator.share({
+                                title: `Join ${room.name} on TIMEPASS`,
+                                text: `🔥 Join my 8-member squad room "${room.name}" on TIMEPASS! Invite Code: #${room.id}`,
+                                url: link
+                              }).catch(() => {});
+                            }
                             navigator.clipboard.writeText(link);
                             setCopiedLinkId(room.id);
                             soundManager.playPop();
-                            setTimeout(() => setCopiedLinkId(null), 2000);
+                            setTimeout(() => setCopiedLinkId(null), 2500);
                           }}
-                          className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] font-bold text-gray-300 hover:text-white flex items-center gap-1 transition-colors"
-                          title="Share Direct Room Link"
+                          className="px-2 py-0.5 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-[10px] font-bold text-pink-300 hover:text-white border border-pink-500/30 flex items-center gap-1 transition-colors"
+                          title="Share Direct Room Link & Code"
                         >
-                          {copiedLinkId === room.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Share2 className="w-3 h-3" />}
-                          <span>{copiedLinkId === room.id ? 'Shared' : 'Share'}</span>
+                          {copiedLinkId === room.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Share2 className="w-3 h-3 text-pink-400" />}
+                          <span>{copiedLinkId === room.id ? 'Copied!' : 'Share'}</span>
                         </button>
                       </div>
                     </div>

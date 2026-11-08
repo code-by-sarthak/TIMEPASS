@@ -95,6 +95,7 @@ export default function CustomRoomViewPage() {
   const [isMusicPickerOpen, setIsMusicPickerOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [floatingEmojis, setFloatingEmojis] = useState<Array<{ id: number; emoji: string; left: number }>>([]);
   const [systemAnnouncement, setSystemAnnouncement] = useState<{ title: string; message: string } | null>(null);
@@ -496,22 +497,54 @@ export default function CustomRoomViewPage() {
     socket.emit('custom-room-reaction', { emoji });
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (typeof window !== 'undefined') {
       const inviteUrl = `${window.location.origin}/rooms/${roomId}`;
-      navigator.clipboard.writeText(inviteUrl);
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+      } catch {
+        const textarea = document.createElement('textarea');
+        textarea.value = inviteUrl;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       setCopiedLink(true);
       soundManager.playPop();
-      setTimeout(() => setCopiedLink(false), 2000);
+      setSystemAnnouncement({
+        title: '📋 Real-Time Invite Link Copied!',
+        message: 'Share this link on WhatsApp, Discord or Telegram to join in real time!'
+      });
+      setTimeout(() => {
+        setCopiedLink(false);
+        setSystemAnnouncement(null);
+      }, 4000);
     }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(roomId);
+      try {
+        await navigator.clipboard.writeText(roomId);
+      } catch {
+        const textarea = document.createElement('textarea');
+        textarea.value = roomId;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       setCopiedCode(true);
       soundManager.playPop();
-      setTimeout(() => setCopiedCode(false), 2000);
+      setSystemAnnouncement({
+        title: '🔑 Room Invite Code Copied!',
+        message: `Invite code #${roomId} copied. Anyone can paste it in the lobby to join real-time!`
+      });
+      setTimeout(() => {
+        setCopiedCode(false);
+        setSystemAnnouncement(null);
+      }, 4000);
     }
   };
 
@@ -606,15 +639,15 @@ export default function CustomRoomViewPage() {
             <span className="hidden sm:inline">Room DJ</span>
           </button>
 
-          {/* Copy Invite Link */}
+          {/* Share Room Button */}
           <button
             type="button"
-            onClick={handleCopyLink}
-            className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1 transition-all"
-            title="Copy invite link to share with friends"
+            onClick={() => setIsShareModalOpen(true)}
+            className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 hover:text-white border border-pink-500/30 text-xs font-semibold flex items-center gap-1 transition-all"
+            title="Share Real-Time Room Link & Code"
           >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{copiedLink ? 'Copied' : 'Invite'}</span>
+            <Share2 className="w-3.5 h-3.5 text-pink-400" />
+            <span className="hidden sm:inline">Share</span>
           </button>
 
           {/* Leave Room Button */}
@@ -938,14 +971,15 @@ export default function CustomRoomViewPage() {
           <span className="hidden sm:inline">Sync Bollywood DJ</span>
         </button>
 
-        {/* Copy Invite Link */}
+        {/* Share Room Button */}
         <button
           type="button"
-          onClick={handleCopyLink}
-          className="p-2 xs:p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 font-bold text-xs flex items-center gap-1.5 transition-all"
+          onClick={() => setIsShareModalOpen(true)}
+          className="p-2 xs:p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:from-pink-500/30 hover:to-purple-500/30 text-pink-300 hover:text-white border border-pink-500/30 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-pink-500/10 active:scale-95"
+          title="Share Real-Time Room Link & Code"
         >
-          {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
-          <span className="hidden sm:inline">{copiedLink ? 'Link Copied!' : 'Share Room'}</span>
+          <Share2 className="w-4 h-4 text-pink-400" />
+          <span className="hidden sm:inline">Share Room</span>
         </button>
 
         {/* Leave Room */}
@@ -1008,6 +1042,105 @@ export default function CustomRoomViewPage() {
           </div>
         </div>
       )}
+      {/* REAL-TIME SHARE ROOM MODAL */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="glass-panel w-full max-w-md p-5 sm:p-6 rounded-3xl border border-pink-500/40 shadow-2xl space-y-4 animate-in zoom-in-95 relative">
+            <button
+              onClick={() => setIsShareModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 text-gray-300 hover:text-white hover:bg-white/20 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2.5 pb-2 border-b border-white/10">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-pink-500/30">
+                <Share2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Share Live Squad Room</h3>
+                <p className="text-[11px] text-gray-400">Invite up to 8 friends to join your live video call in real time</p>
+              </div>
+            </div>
+
+            {/* Room Invite Code Section */}
+            <div className="bg-white/5 p-3.5 rounded-2xl border border-white/10">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                Room Invite Code
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-lg font-mono font-black text-pink-300 tracking-wider">
+                  #{roomId}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="px-3 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-xs font-bold border border-pink-500/30 flex items-center gap-1.5 transition-all active:scale-95"
+                >
+                  {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedCode ? 'Copied!' : 'Copy Code'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Direct Real-Time Share Link */}
+            <div className="bg-white/5 p-3.5 rounded-2xl border border-white/10">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                Real-Time Live Share Link
+              </span>
+              <div className="flex items-center justify-between gap-2 bg-black/40 p-2 rounded-xl border border-white/5">
+                <span className="text-xs text-gray-300 truncate font-mono flex-1">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/rooms/${roomId}` : `/rooms/${roomId}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold shrink-0 flex items-center gap-1 transition-all active:scale-95"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick 1-Click WhatsApp & Device Share */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <a
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                  `🔥 Join my live 8-member squad room "${room?.name || 'TIMEPASS Room'}" on TIMEPASS! Click link to join instantly: ${typeof window !== 'undefined' ? `${window.location.origin}/rooms/${roomId}` : `/rooms/${roomId}`} (Invite Code: #${roomId})`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all hover:scale-102 active:scale-98"
+              >
+                <span>💬 WhatsApp Share</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (typeof navigator !== 'undefined' && navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: `Join squad room: ${room?.name || 'TIMEPASS Room'}`,
+                        text: `🔥 Join my squad room "${room?.name || 'TIMEPASS Room'}" on TIMEPASS! Invite Code: #${roomId}`,
+                        url: `${window.location.origin}/rooms/${roomId}`
+                      });
+                    } catch {}
+                  } else {
+                    handleCopyLink();
+                  }
+                }}
+                className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-pink-500/20 transition-all hover:scale-102 active:scale-98"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Device Share</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* STRICT AUTHENTICATION GATE: User must login through Gmail or Email */}
       {!user && !loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in">

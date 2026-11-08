@@ -90,9 +90,19 @@ export default function PrivateRoomPage() {
   }, [roomId]);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (typeof window !== 'undefined') {
+      const link = window.location.href;
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        navigator.share({
+          title: 'Join my private video call on TIMEPASS',
+          text: '🔥 Join my private 1-on-1 encrypted video call on TIMEPASS!',
+          url: link
+        }).catch(() => {});
+      }
+      navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
 
   const handleEnd = () => {
